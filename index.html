@@ -816,7 +816,8 @@ function custGeo(c){
 const DAYS = [['po','Po'],['ut','Út'],['st','St'],['ct','Čt'],['pa','Pá'],['so','So'],['ne','Ne']];
 const DAY_BY_JS = ['ne','po','ut','st','ct','pa','so'];
 const SLOTS = [['e','3:00 – 4:00'],['8','8:00'],['z2','2. závoz']];
-const slotText = c => SLOTS.filter(([k]) => (c.slots||[]).includes(k)).map(([,l]) => l).join(', ');
+const slotOf = c => c.slot || (Array.isArray(c.slots) && c.slots[0]) || '';
+const slotText = c => (SLOTS.find(([k]) => k === slotOf(c)) || [,''])[1];
 function planDay(){
   const d = state.settings.date; if (!d) return null;
   const [y,m,dd] = d.split('-').map(Number); return DAY_BY_JS[new Date(y, m-1, dd).getDay()];
@@ -835,7 +836,7 @@ function renderCustomers(){
           ${DAYS.map(([k,l]) => `<label><input type="checkbox" data-day="${k}" ${(c.days||[]).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
         </div></div>
         <div class="wide"><label>Závoz</label><div class="lic slots">
-          ${SLOTS.map(([k,l]) => `<label><input type="checkbox" data-slot="${k}" ${(c.slots||[]).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
+          ${SLOTS.map(([k,l]) => `<label><input type="radio" name="slot-${esc(c.id)}" data-slot="${k}" ${slotOf(c) === k ? 'checked' : ''}>${l}</label>`).join('')}
         </div></div>
       </div>
       <div class="card-foot">${custGeo(c)}<button class="ghost" data-del>Odebrat</button></div>
@@ -848,9 +849,7 @@ $('custCards').addEventListener('input', e => {
   const c = state.customers[+card.dataset.ci];
   const slot = e.target.dataset.slot;
   if (slot){
-    const set = new Set(c.slots || []);
-    if (e.target.checked) set.add(slot); else set.delete(slot);
-    c.slots = SLOTS.map(([k]) => k).filter(k => set.has(k));
+    c.slot = slot; delete c.slots;
     save(); renderVehicles(false); return;
   }
   const day = e.target.dataset.day;
@@ -879,7 +878,7 @@ $('custCards').addEventListener('click', e => {
 });
 $('addCustomer').onclick = () => {
   $('custFilter').value = '';
-  state.customers.push({ id:'c'+(uid++), name:'', address:'', demand:1, window:'', kind:'V', note:'', days:[], slots:[], car:'', lat:null, lng:null, label:'' });
+  state.customers.push({ id:'c'+(uid++), name:'', address:'', demand:1, window:'', kind:'V', note:'', days:[], slot:'', car:'', lat:null, lng:null, label:'' });
   save(); renderCustomers(); renderVehicles(false);
   const cards = document.querySelectorAll('#custCards .card'); cards[cards.length-1]?.querySelector('input')?.focus();
 };
