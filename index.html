@@ -153,6 +153,10 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
   .c-days.lic.days .every{grid-column:1 / -1}
 }
 .mode-hint{background:var(--field); border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:6px; padding:.5rem .7rem; margin:0 0 .6rem; font-size:.9rem}
+.ord{display:inline-grid; place-items:center; min-width:1.6rem; height:1.6rem; padding:0 .3rem; border-radius:999px; background:var(--blue); color:var(--blue-ink); font-size:.78rem; font-weight:700}
+.pick-order{margin:0 0 .4rem; padding:.45rem .6rem .45rem 2rem; background:var(--surface); border:1px solid var(--line); border-radius:6px; font-size:.86rem; columns:2; column-gap:1.5rem}
+.pick-order li{break-inside:avoid; padding:.05rem 0}
+@media (max-width:640px){ .pick-order{columns:1} }
 .pick-item .today{color:var(--blue); font-weight:600}
 .pick-sep{margin:.5rem 0 .1rem; font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
 .card-foot{display:flex; justify-content:space-between; align-items:center; margin-top:.7rem; gap:.5rem; flex-wrap:wrap}
@@ -243,7 +247,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:20</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:35</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -268,7 +272,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:20</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:35</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -328,7 +332,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 
     <div class="panel">
       <h2>Auta a řidiči na lince</h2>
-      <p class="hint">U každého auta vyberte řidiče a zaškrtněte zákazníky, které na této lince objede. Pořadí určí aplikace. Vlastní výjezd vyplňte, jen když auto vyjíždí jindy než ostatní.</p>
+      <p class="hint">U každého auta vyberte řidiče a zaškrtněte zákazníky, které na této lince objede. Zastávky se pojedou v pořadí, v jakém hotely zaškrtnete. Vlastní výjezd vyplňte, jen když auto vyjíždí jindy než ostatní.</p>
       <p id="modeHint" class="mode-hint"></p>
       <div id="vehicles"></div>
     </div>
@@ -636,7 +640,7 @@ function pickerHtml(v){
     const other = c.car && c.car !== v.id ? state.vehicles.find(x => x.id === c.car) : null;
     return `<label class="pick-item ${other ? 'other' : ''}" data-s="${esc((c.name + ' ' + c.address).toLowerCase())}">
       <input type="checkbox" data-pick="${c.id}" data-v="${v.id}" ${c.car === v.id ? 'checked' : ''}>
-      <span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : esc(slotText(c))}</small></label>`; };
+      ${c.car === v.id ? `<b class="ord" title="Pořadí na lince">${c.order || ''}.</b>` : ''}<span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : esc(slotText(c))}</small></label>`; };
   const vSlot = carSlot(v);
   const allowed = [vSlot];
   const sameDay = vSlot === 'z2'; // 2. závoz: jen zákazníci se zaškrtnutým dnem
@@ -653,6 +657,7 @@ function pickerHtml(v){
   return `<details class="pick" data-v="${v.id}" ${openPicks.has(v.id) ? 'open' : ''}>
     <summary>Zákazníci na lince: ${mine.length}<span class="note ${over ? 'warn' : ''}">${mine.length ? klece(sum) + ' z ' + klece(v.capacity) + (over ? ' – přetíženo' : '') : 'zatím nikdo'}</span></summary>
     <div class="pick-body">
+      ${mine.length ? `<ol class="pick-order">${carOrder(v.id).map(c => `<li>${esc(c.name || c.address)}</li>`).join('')}</ol>` : '<p class="note" style="margin:0 0 .3rem">Zaškrtávejte hotely v pořadí, v jakém je má auto objet.</p>'}
       ${shown.length > 6 ? `<input class="pick-filter" data-v="${v.id}" placeholder="Hledat zákazníka…" value="${esc(pickFilter[v.id] || '')}">` : ''}
       <div class="pick-list">${list}</div>
     </div></details>`;
@@ -739,12 +744,18 @@ $('vehicles').addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.pick')) return;
   if (d.open) openPicks.add(d.dataset.v); else openPicks.delete(d.dataset.v);
 }, true);
+// pořadí zastávek = pořadí zaškrtnutí
+function carOrder(vid){ return state.customers.filter(c => c.car === vid).sort((a,b) => (a.order||0) - (b.order||0)); }
+function renumber(vid){ carOrder(vid).forEach((c,i) => { c.order = i + 1; }); }
 $('vehicles').addEventListener('change', e => {
   const cid = e.target.dataset.pick; if (!cid) return;
   const c = state.customers.find(x => x.id === cid); if (!c) return;
-  c.car = e.target.checked ? e.target.dataset.v : '';
+  const was = c.car, vid = e.target.dataset.v;
+  if (e.target.checked) { c.car = vid; c.order = carOrder(vid).filter(x => x !== c).length + 1; renumber(vid); }
+  else { c.car = ''; c.order = 0; }
+  if (was && was !== c.car) renumber(was);
   markStale();
-  const y = window.scrollY, list = e.target.closest('.pick-list'), st = list ? list.scrollTop : 0, vid = e.target.dataset.v;
+  const y = window.scrollY, list = e.target.closest('.pick-list'), st = list ? list.scrollTop : 0;
   renderVehicles(false); drawMarkers();
   const nl = document.querySelector(`details.pick[data-v="${vid}"] .pick-list`); if (nl) nl.scrollTop = st;
   window.scrollTo(0, y);
@@ -1146,7 +1157,14 @@ $('plan').onclick = async () => {
     const vehicles = state.vehicles.map(v => ({ capacity:+v.capacity, start: startMinutes(v) }));
     const over = state.vehicles.map((v,k) => [v, stops.filter(x => x.vehicle === k).reduce((a,x) => a + x.demand, 0)]).filter(([v,sum]) => sum > v.capacity);
     const S = makeSolver({ dur:M.dur, stops, vehicles, start, end, service });
-    const sol = S.solve(Math.min(4000, 800 + usable.length*40));
+    // pevné pořadí podle zaškrtnutí, žádné přeskládání
+    const sol = { unassigned: [], routes: state.vehicles.map((v,k) => {
+      const r = usable.map((s,idx) => [s, idx + 1]).filter(([s]) => s.car === v.id)
+        .sort((a,b) => (a[0].order||0) - (b[0].order||0)).map(([,n]) => n);
+      let travel = 0, prev = 0; r.forEach(c => { travel += M.dur[prev][c]; prev = c; }); if (r.length) travel += M.dur[prev][0];
+      return { stops: r, travel, load: r.reduce((a,c) => a + stops[c-1].demand, 0) };
+    }) };
+    const late = sol.routes.map((r,k) => [state.vehicles[k], S.schedule(r.stops, k).back]).filter(([v,b], k) => sol.routes[k].stops.length && b > end);
     state.result = {
       road: M.road, start, date: st.date,
       routes: sol.routes.map((r,k) => {
@@ -1160,7 +1178,9 @@ $('plan').onclick = async () => {
     state.stale = false; save();
     drawMarkers(true); renderResults(); await drawRoutes();
     const nu = state.result.unassigned.length;
-    if (over.length) return setStatus(`Hotovo, ale ${over.map(([v,sum]) => `${v.name} má zaškrtnuto ${klece(sum)} a uveze ${klece(v.capacity)}`).join('; ')}. Část zákazníků proto zůstala nezařazená, přesuňte je jinému autu nebo na další linku.`, true);
+    const warns = over.map(([v,sum]) => `${v.name} má zaškrtnuto ${klece(sum)} a uveze ${klece(v.capacity)}`)
+      .concat(late.map(([v,b]) => `${v.name} se vrátí až v ${fmt(b)}`));
+    if (warns.length) return setStatus(`Hotovo, ale pozor: ${warns.join('; ')}.`, true);
     setStatus(nu ? `Hotovo, ale ${nu} zastávek se do tras nevešlo — viz níže.` : (M.road ? 'Hotovo.' : 'Hotovo. Dojezdy jsou jen odhadnuté vzdušnou čarou, silniční data se nepodařilo načíst.'), !!nu);
   } catch(e){
     setStatus(e.message + ' Zkontrolujte připojení k internetu.', true);
