@@ -122,6 +122,13 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 .card.compact{padding:.7rem .8rem}
 .card.compact .grid2{gap:.45rem}
 .card.compact .card-foot{margin-top:.45rem}
+.lic.days{display:grid; grid-template-columns:repeat(7, 1fr); gap:.25rem}
+.lic.days label{position:relative; justify-content:center; padding:.35rem 0; font-size:.82rem}
+.lic.days .every{grid-column:1 / -1; justify-content:flex-start; padding:.35rem .55rem}
+.days label:not(.every) input{position:absolute; opacity:0; pointer-events:none}
+.days label:has(input:focus-visible){outline:2px solid var(--blue); outline-offset:1px}
+.pick-item .today{color:var(--blue); font-weight:600}
+.pick-sep{margin:.5rem 0 .1rem; font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
 .card-foot{display:flex; justify-content:space-between; align-items:center; margin-top:.7rem; gap:.5rem; flex-wrap:wrap}
 .lic{display:flex; flex-wrap:wrap; gap:.35rem}
 .lic label{display:inline-flex; align-items:center; gap:.3rem; margin:0; padding:.3rem .55rem; border:1px solid var(--line); border-radius:5px; color:var(--ink); font-size:.85rem; cursor:pointer}
@@ -252,9 +259,9 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 
 <section id="tab-customers" class="registry" role="tabpanel" hidden>
   <h2>Zákazníci</h2>
-  <p class="lead">Stálý adresář hotelů a dalších zákazníků. Na linku je přiřadíte v Plánování zaškrtnutím u konkrétního auta.</p>
+  <p class="lead">Stálý adresář hotelů. Zaškrtněte dny, kdy se k hotelu jezdí. V Plánování se pak hotely na ten den nabízejí u aut nahoře.</p>
   <div class="row-actions" style="margin:0 0 1rem"><input id="custFilter" placeholder="Hledat zákazníka…" style="max-width:320px"></div>
-  <div id="custCards" class="cards"></div>
+  <div id="custCards" class="cards cards-sm"></div>
   <div class="row-actions">
     <button id="addCustomer">Přidat zákazníka</button>
     <button id="toggleImport">Vložit seznam</button>
@@ -587,11 +594,16 @@ function pickerHtml(v){
   const mine = state.customers.filter(c => c.car === v.id);
   const sum = mine.reduce((a,c) => a + (+c.demand || 0), 0);
   const over = sum > +v.capacity;
-  const list = state.customers.length ? state.customers.map(c => {
+  const day = planDay();
+  const item = c => {
     const other = c.car && c.car !== v.id ? state.vehicles.find(x => x.id === c.car) : null;
     return `<label class="pick-item ${other ? 'other' : ''}" data-s="${esc((c.name + ' ' + c.address).toLowerCase())}">
       <input type="checkbox" data-pick="${c.id}" data-v="${v.id}" ${c.car === v.id ? 'checked' : ''}>
-      <span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : klece(c.demand)}</small></label>`; }).join('')
+      <span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : ''}</small></label>`; };
+  const todays = state.customers.filter(c => goesOn(c, day)), rest = state.customers.filter(c => !goesOn(c, day));
+  const list = state.customers.length ? (todays.length
+      ? `<p class="pick-sep">Jezdí ${esc(dayLabel(state.settings.date).toLowerCase())}</p>${todays.map(item).join('')}${rest.length ? `<p class="pick-sep">Ostatní</p>${rest.map(item).join('')}` : ''}`
+      : state.customers.map(item).join(''))
     : '<p class="note" style="margin:0">Zatím žádní zákazníci. Přidejte je v záložce Zákazníci.</p>';
   return `<details class="pick" data-v="${v.id}" ${openPicks.has(v.id) ? 'open' : ''}>
     <summary>Zákazníci na lince: ${mine.length}<span class="note ${over ? 'warn' : ''}">${mine.length ? klece(sum) + ' z ' + klece(v.capacity) + (over ? ' – přetíženo' : '') : 'zatím nikdo'}</span></summary>
@@ -797,20 +809,25 @@ function renderStops(){ renderVehicles(false); renderCustomers(); }
 function custGeo(c){
   return c.lat != null ? '<span class="note">Na mapě nalezeno</span>' : (c.geoFailed ? '<span class="note warn">Adresu se nepodařilo najít. Doplňte město nebo PSČ.</span>' : '<span class="note">Poloha se vyhledá při plánování</span>');
 }
+const DAYS = [['po','Po'],['ut','Út'],['st','St'],['ct','Čt'],['pa','Pá'],['so','So'],['ne','Ne']];
+const DAY_BY_JS = ['ne','po','ut','st','ct','pa','so'];
+function planDay(){
+  const d = state.settings.date; if (!d) return null;
+  const [y,m,dd] = d.split('-').map(Number); return DAY_BY_JS[new Date(y, m-1, dd).getDay()];
+}
+const goesOn = (c, day) => !!day && (c.days || []).includes(day);
 function renderCustomers(){
   const q = ($('custFilter').value || '').toLowerCase().trim();
   const list = state.customers.map((c,i) => [c,i]).filter(([c]) => !q || (c.name + ' ' + c.address).toLowerCase().includes(q));
   $('custCards').innerHTML = state.customers.length ? (list.length ? list.map(([c,i]) => `
-    <article class="card" data-ci="${i}">
+    <article class="card compact" data-ci="${i}">
       <div class="grid2">
-        <div class="wide"><label>Název (hotel)</label><input data-k="name" value="${esc(c.name)}" placeholder="např. Hotel Lípa"></div>
+        <div class="wide"><label>Název hotelu</label><input data-k="name" value="${esc(c.name)}" placeholder="např. Hotel Lípa"></div>
         <div class="wide"><label>Adresa</label><input data-k="address" value="${esc(c.address)}" placeholder="Ulice č. p., PSČ Město"></div>
-        <div><label>Obvykle klecí</label><input data-k="demand" type="number" min="0" value="${esc(c.demand)}"></div>
-        <div><label>Typ</label><select data-k="kind">
-          <option value="V" ${c.kind==='V'?'selected':''}>Vyzvednutí</option>
-          <option value="R" ${c.kind==='R'?'selected':''}>Rozvoz</option></select></div>
-        <div class="wide"><label>Časové okno</label><input data-k="window" value="${esc(c.window)}" placeholder="kdykoli, nebo např. 5:00-7:00"></div>
-        <div class="wide"><label>Poznámka pro řidiče</label><textarea data-k="note" placeholder="Vjezd ze dvora, klíč na recepci…">${esc(c.note||'')}</textarea></div>
+        <div class="wide"><label>Kdy se jezdí</label><div class="lic days">
+          <label class="every"><input type="checkbox" data-day="all" ${(c.days||[]).length === 7 ? 'checked' : ''}>Každý den</label>
+          ${DAYS.map(([k,l]) => `<label><input type="checkbox" data-day="${k}" ${(c.days||[]).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
+        </div></div>
       </div>
       <div class="card-foot">${custGeo(c)}<button class="ghost" data-del>Odebrat</button></div>
     </article>`).join('') : '<p class="empty">Nikdo neodpovídá hledání.</p>')
@@ -818,8 +835,18 @@ function renderCustomers(){
 }
 $('custFilter').addEventListener('input', renderCustomers);
 $('custCards').addEventListener('input', e => {
-  const card = e.target.closest('.card'), k = e.target.dataset.k; if (!card || !k) return;
+  const card = e.target.closest('.card'); if (!card) return;
   const c = state.customers[+card.dataset.ci];
+  const day = e.target.dataset.day;
+  if (day){
+    const set = new Set(c.days || []);
+    if (day === 'all') { if (e.target.checked) DAYS.forEach(([k]) => set.add(k)); else set.clear(); }
+    else if (e.target.checked) set.add(day); else set.delete(day);
+    c.days = DAYS.map(([k]) => k).filter(k => set.has(k));
+    card.querySelectorAll('input[data-day]').forEach(cb => { cb.checked = cb.dataset.day === 'all' ? c.days.length === 7 : c.days.includes(cb.dataset.day); });
+    save(); renderVehicles(false); return;
+  }
+  const k = e.target.dataset.k; if (!k) return;
   c[k] = k === 'demand' ? +e.target.value : e.target.value;
   if (k === 'address'){ c.lat = c.lng = null; c.geoFailed = false; card.querySelector('.card-foot').firstElementChild.outerHTML = custGeo(c); }
   if (c.car && k !== 'note') markStale(); else save();
@@ -836,7 +863,7 @@ $('custCards').addEventListener('click', e => {
 });
 $('addCustomer').onclick = () => {
   $('custFilter').value = '';
-  state.customers.push({ id:'c'+(uid++), name:'', address:'', demand:1, window:'', kind:'V', note:'', car:'', lat:null, lng:null, label:'' });
+  state.customers.push({ id:'c'+(uid++), name:'', address:'', demand:1, window:'', kind:'V', note:'', days:[], car:'', lat:null, lng:null, label:'' });
   save(); renderCustomers(); renderVehicles(false);
   const cards = document.querySelectorAll('#custCards .card'); cards[cards.length-1]?.querySelector('input')?.focus();
 };
