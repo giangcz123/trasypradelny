@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trasy prádelny</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#EEF1F7; --surface:#FFFFFF; --ink:#14182B; --muted:#5B6278; --line:#D5DAE6;
+  --blue:#2440C9; --blue-ink:#FFFFFF; --tag:#F3C623; --warn-bg:#FFF4D6; --warn-ink:#6B4A00;
+  --err:#B3261E; --field:#F7F8FB; --wa:#167A43; --wa-ink:#FFFFFF;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#10131F; --surface:#191D2C; --ink:#E8EBF4; --muted:#9AA1B8; --line:#2C3247;
+    --blue:#7B93FF; --blue-ink:#0E1330; --tag:#F3C623; --warn-bg:#3A2F10; --warn-ink:#FFE08A;
+    --err:#FF8A80; --field:#141826; --wa:#4ADE80; --wa-ink:#06240F;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size:15px; line-height:1.45;
+}
+h1,h2,h3{font-stretch:125%; margin:0; line-height:1.1}
+h1{font-size:1.6rem; font-weight:800; letter-spacing:-.01em}
+h2{font-size:1.05rem; font-weight:750}
+header.top{
+  display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+  padding:1.1rem 1.5rem; border-bottom:1px solid var(--line); background:var(--surface);
+}
+header.top p{margin:0; color:var(--muted)}
+.layout{
+  display:grid; grid-template-columns:minmax(340px, 520px) 1fr; gap:1.25rem;
+  padding:1.25rem 1.5rem 3rem; max-width:1500px; margin:0 auto;
+}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:1rem 1.1rem; margin-bottom:1rem}
+.panel h2{margin-bottom:.75rem}
+.panel .hint{color:var(--muted); font-size:.85rem; margin:.25rem 0 .75rem}
+label{display:block; font-size:.8rem; color:var(--muted); margin-bottom:.2rem}
+input, select, textarea{
+  width:100%; font:inherit; color:var(--ink); background:var(--field);
+  border:1px solid var(--line); border-radius:6px; padding:.45rem .55rem;
+}
+textarea{min-height:130px; font-size:.9rem}
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible{
+  outline:2px solid var(--blue); outline-offset:1px;
+}
+.grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:.6rem}
+.grid4 .wide{grid-column:1 / -1}
+button{
+  font:inherit; font-weight:600; cursor:pointer; border-radius:6px;
+  padding:.5rem .85rem; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+}
+button:hover{border-color:var(--blue)}
+button.primary{background:var(--blue); color:var(--blue-ink); border-color:var(--blue); font-stretch:115%}
+button.ghost{border-color:transparent; background:transparent; color:var(--muted); padding:.3rem .45rem}
+button.ghost:hover{color:var(--err)}
+button:disabled{opacity:.55; cursor:progress}
+.row-actions{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.75rem}
+
+.vehicle{display:grid; grid-template-columns:14px 1.2fr 1fr 1fr; gap:.4rem .5rem; align-items:end; padding:.6rem 0; border-top:1px solid var(--line)}
+.vehicle:first-child{border-top:0}
+.vehicle .swatch{align-self:center; margin-bottom:.6rem}
+.driver{display:grid; grid-template-columns:1fr 1fr auto; gap:.5rem; align-items:end; margin-bottom:.45rem}
+.wa{display:inline-block; background:var(--wa); color:var(--wa-ink) !important; text-decoration:none; font-weight:700;
+  border-radius:6px; padding:.45rem .8rem; font-stretch:110%}
+.wa:hover{filter:brightness(1.08)}
+.ticket .driver-line{font-weight:600; margin-top:.15rem}
+.note{color:var(--muted); font-size:.82rem}
+.note.warn{color:var(--err)}
+details.pick{grid-column:2 / -1; border:1px solid var(--line); border-radius:6px; background:var(--field)}
+details.pick summary{cursor:pointer; padding:.5rem .65rem; font-weight:600; list-style-position:inside}
+details.pick summary .note{font-weight:400; margin-left:.3rem}
+details.pick[open] summary{border-bottom:1px solid var(--line)}
+.pick-body{padding:.5rem .65rem}
+.pick-list{max-height:260px; overflow:auto; margin-top:.45rem}
+.pick-item{display:flex !important; align-items:center; gap:.5rem; padding:.35rem .2rem; margin:0 !important; color:var(--ink) !important; font-size:.92rem !important; border-bottom:1px dashed var(--line); cursor:pointer}
+.pick-item:last-child{border-bottom:0}
+.pick-item input{width:auto; margin:0}
+.pick-item span{flex:1}
+.pick-item small{color:var(--muted)}
+.pick-item.other span{color:var(--muted)}
+.vehicle .vname{font-weight:700; font-stretch:110%; align-self:center}
+.vehicle .vname small{display:block; font-weight:400; font-stretch:100%; color:var(--muted)}
+.depot-box{background:var(--field); border:1px solid var(--line); border-radius:6px; padding:.5rem .65rem}
+.depot-box strong{display:block; font-stretch:110%}
+nav.tabs{display:flex; gap:.25rem; margin-left:auto}
+nav.tabs button{border:0; background:transparent; color:var(--muted); border-bottom:3px solid transparent; border-radius:0; padding:.45rem .8rem; font-stretch:110%}
+nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--blue)}
+.registry{max-width:1100px; margin:0 auto; padding:1.25rem 1.5rem 3rem}
+.registry .lead{color:var(--muted); margin:.35rem 0 1rem}
+.cards{display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:1rem}
+.card{background:var(--surface); border:1px solid var(--line); border-left:8px solid var(--c, var(--line)); border-radius:4px 10px 10px 4px; padding:1rem}
+.card .grid2{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
+.card .grid2 .wide{grid-column:1 / -1}
+.card textarea{min-height:64px}
+.card a{color:var(--blue); font-weight:600}
+.cards-sm{grid-template-columns:repeat(auto-fill, minmax(270px, 1fr))}
+.card.compact{padding:.7rem .8rem}
+.card.compact .grid2{gap:.45rem}
+.card.compact .card-foot{margin-top:.45rem}
+.card-foot{display:flex; justify-content:space-between; align-items:center; margin-top:.7rem; gap:.5rem; flex-wrap:wrap}
+.lic{display:flex; flex-wrap:wrap; gap:.35rem}
+.lic label{display:inline-flex; align-items:center; gap:.3rem; margin:0; padding:.3rem .55rem; border:1px solid var(--line); border-radius:5px; color:var(--ink); font-size:.85rem; cursor:pointer}
+.lic input{width:auto; margin:0}
+.lic label:has(input:checked){background:var(--blue); color:var(--blue-ink); border-color:var(--blue)}
+.swatch{width:14px; height:14px; border-radius:50%}
+
+.stop{
+  display:grid; gap:.4rem .5rem; align-items:end;
+  grid-template-columns:28px 1.1fr 1.6fr; grid-template-areas:
+    "n name addr"
+    ". qty qty"
+    ". win win";
+  padding:.6rem 0; border-top:1px solid var(--line);
+}
+.stop:first-child{border-top:0}
+.stop .n{grid-area:n; font-weight:700; color:var(--muted); align-self:center; font-stretch:75%}
+.stop .name{grid-area:name} .stop .addr{grid-area:addr}
+.stop .qty{grid-area:qty; display:grid; grid-template-columns:62px 1fr 1fr; gap:.4rem}
+.stop .win{grid-area:win; display:grid; grid-template-columns:1fr auto; gap:.4rem; align-items:end}
+.stop .geo{font-size:.75rem; color:var(--muted); grid-column:2 / -1}
+.stop .geo.bad{color:var(--err)}
+.empty{color:var(--muted); padding:.75rem 0}
+
+#status{min-height:1.4em; margin:.25rem 0 0; color:var(--muted); font-size:.9rem}
+#status.err{color:var(--err)}
+
+.right{min-width:0}
+#map{height:460px; border-radius:10px; border:1px solid var(--line); background:var(--surface); position:sticky; top:1rem; z-index:0}
+.pin{
+  background:var(--surface); color:var(--ink); border:2px solid var(--ink); border-radius:50%;
+  width:26px; height:26px; display:grid; place-items:center; font-weight:700; font-size:12px;
+  font-family:"Archivo", system-ui, sans-serif; box-shadow:0 1px 3px rgba(0,0,0,.35);
+}
+.pin.depot{border-radius:5px; background:var(--tag); color:#14182B; border-color:#14182B; width:30px; height:30px; font-size:15px}
+
+.stale{background:var(--warn-bg); color:var(--warn-ink); border-radius:8px; padding:.6rem .8rem; margin:1rem 0 0}
+.summary{display:flex; gap:1.5rem; flex-wrap:wrap; margin:1.25rem 0 .5rem; align-items:baseline}
+.summary strong{font-stretch:125%; font-size:1.3rem}
+.summary span{color:var(--muted)}
+
+/* Trasy jako prádelenské lístky */
+.tickets{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:1rem; margin-top:.75rem}
+.ticket{
+  position:relative; background:var(--surface); border:1px solid var(--line); border-radius:4px 12px 12px 4px;
+  border-left:10px solid var(--c); padding:1rem 1rem .9rem 1.4rem;
+}
+.ticket::before{
+  content:""; position:absolute; left:-1px; top:18px; width:12px; height:12px; border-radius:50%;
+  background:var(--bg); border:1px solid var(--line); transform:translateX(-50%);
+}
+.ticket h3{font-size:1.35rem; font-weight:800}
+.ticket .meta{display:flex; gap:1rem; flex-wrap:wrap; color:var(--muted); font-size:.85rem; margin:.35rem 0 .7rem}
+.ticket ol{list-style:none; margin:0; padding:0; border-top:1px dashed var(--line)}
+.ticket li{display:grid; grid-template-columns:52px 1fr; gap:.5rem; padding:.45rem 0; border-bottom:1px dashed var(--line)}
+.ticket li .t{font-weight:700; font-variant-numeric:tabular-nums}
+.ticket li .who{font-weight:600}
+.ticket li .sub{color:var(--muted); font-size:.82rem}
+.ticket .links{display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.7rem; font-size:.88rem}
+.ticket a{color:var(--blue)}
+.kind{display:inline-block; font-size:.72rem; font-weight:700; padding:.05rem .4rem; border-radius:3px; margin-left:.3rem; vertical-align:1px}
+.kind.v{background:var(--tag); color:#14182B}
+.kind.r{background:var(--blue); color:var(--blue-ink)}
+.unassigned{border:1px solid var(--err); color:var(--ink); border-radius:8px; padding:.7rem .9rem; margin-top:1rem}
+.unassigned strong{color:var(--err)}
+
+@media (max-width: 900px){
+  .vehicle{grid-template-columns:14px 1fr 1fr}
+  .vehicle > :nth-child(5){grid-column:2}
+  .layout{grid-template-columns:1fr; padding:1rem}
+  #map{position:relative; top:0; height:340px}
+  .grid4{grid-template-columns:1fr 1fr}
+  .stop{grid-template-columns:24px 1fr; grid-template-areas:"n name" ". addr" ". qty" ". win"}
+}
+@media print{
+  header.top, .left, #map, .registry, .row-actions.res, .stale, .ticket .links, .wa{display:none !important}
+  .layout{display:block; padding:0}
+  body{background:#fff; color:#000}
+  .tickets{display:block}
+  .ticket{break-inside:avoid; page-break-after:always; border-color:#999}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Trasy prádelny</h1>
+  <p>D&amp;D laundry, Vidov</p>
+  <nav class="tabs" role="tablist" aria-label="Části aplikace">
+    <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
+    <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
+    <button role="tab" data-tab="drivers" aria-selected="false">Řidiči</button>
+    <button role="tab" data-tab="customers" aria-selected="false">Zákazníci</button>
+  </nav>
+</header>
+
+<section id="tab-cars" class="registry" role="tabpanel" hidden>
+  <h2>Auta</h2>
+  <p class="lead">Kapacita je maximum klecí na jednu linku, oprávnění je to, které řidič k autu potřebuje.</p>
+  <div id="carCards" class="cards cards-sm"></div>
+  <div class="row-actions"><button id="addVehicle">Přidat auto</button></div>
+</section>
+
+<section id="tab-drivers" class="registry" role="tabpanel" hidden>
+  <h2>Řidiči</h2>
+  <p class="lead">Na uvedený telefon se posílají linky přes WhatsApp. Telefon zadejte jako +420 777 123 456.</p>
+  <div id="driverCards" class="cards"></div>
+  <div class="row-actions"><button id="addDriver">Přidat řidiče</button></div>
+</section>
+
+<section id="tab-customers" class="registry" role="tabpanel" hidden>
+  <h2>Zákazníci</h2>
+  <p class="lead">Stálý adresář hotelů a dalších zákazníků. Na linku je přiřadíte v Plánování zaškrtnutím u konkrétního auta.</p>
+  <div class="row-actions" style="margin:0 0 1rem"><input id="custFilter" placeholder="Hledat zákazníka…" style="max-width:320px"></div>
+  <div id="custCards" class="cards"></div>
+  <div class="row-actions">
+    <button id="addCustomer">Přidat zákazníka</button>
+    <button id="toggleImport">Vložit seznam</button>
+  </div>
+  <div id="importBox" hidden style="margin-top:.8rem; max-width:720px">
+    <label for="importText">Jeden zákazník na řádek: název; adresa; obvyklý počet klecí; časové okno; typ (V = vyzvednutí, R = rozvoz). Lze vložit i přímo z Excelu.</label>
+    <textarea id="importText" placeholder="Hotel Lípa; Korunní 40, České Budějovice; 6; 5:00-7:00; V&#10;Hotel Bazilika; Biskupská 130, České Budějovice; 3; ; R"></textarea>
+    <div class="row-actions"><button id="doImport">Přidat zákazníky</button></div>
+  </div>
+</section>
+
+<main class="layout" id="tab-plan" role="tabpanel">
+  <section class="left">
+    <div class="panel" hidden>
+      <h2>Linka a směna</h2>
+      <div class="grid4">
+        <div class="wide"><label>Prádelna (odsud auta vyjíždějí a sem se vracejí)</label>
+          <div class="depot-box"><strong>D&amp;D laundry</strong>Vidov 40, 370 07 Vidov</div></div>
+        <div><label for="dDate">Den jízdy</label><input id="dDate" type="date"></div>
+        <div><label for="tStart">Výjezd</label><input id="tStart" value="04:00"></div>
+        <div><label for="tEnd">Návrat nejpozději</label><input id="tEnd" value="17:00"></div>
+        <div><label for="service">Minut na zastávku</label><input id="service" type="number" min="0" value="5"></div>
+        <div><label for="reload">Vyložení a naložení v prádelně (min)</label><input id="reload" type="number" min="0" value="20"></div>
+        <p class="note wide" style="margin:0">Náklad se počítá v klecích. Den jízdy se předvyplní: od 15:00 zítřek, jinak dnešek.</p>
+      </div>
+      <p class="geo" id="depotGeo" style="font-size:.78rem;color:var(--muted);margin:.5rem 0 0"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Auta a řidiči na lince</h2>
+      <p class="hint">U každého auta vyberte řidiče a zaškrtněte zákazníky, které na této lince objede. Pořadí určí aplikace. Vlastní výjezd vyplňte, jen když auto vyjíždí jindy než ostatní.</p>
+      <div id="vehicles"></div>
+    </div>
+
+    <div class="panel">
+      <div class="row-actions" style="margin-top:0">
+        <button id="plan" class="primary">Naplánovat trasy</button>
+        <button id="geocodeBtn">Jen najít adresy</button>
+        <button id="newDay" class="ghost">Začít nový den (linka 1)</button>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section class="right">
+    <div id="map" aria-label="Mapa zastávek"></div>
+    <div id="results"></div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// Solver: více aut, kapacita, časová okna, start a návrat do depa (uzel 0).
+// dur[i][j] = minuty jízdy. stops[i-1] = {demand, from, to} (minuty od půlnoci), service = min na zastávku.
+function makeSolver(opts) {
+  const { dur, stops, vehicles, start, end, service } = opts;
+  const n = stops.length;
+  const PEN = 1e6;
+
+  function evalRoute(route, k) {
+    const cap = vehicles[k].capacity, t0 = vehicles[k].start ?? start;
+    let t = t0, prev = 0, load = 0, travel = 0, wait = 0;
+    for (const c of route) {
+      const s = stops[c - 1];
+      load += s.demand;
+      if (load > cap) return null;
+      const d = dur[prev][c];
+      travel += d; t += d;
+      if (t < s.from) { wait += s.from - t; t = s.from; }
+      if (t > s.to) return null;
+      t += service; prev = c;
+    }
+    if (route.length) { travel += dur[prev][0]; t += dur[prev][0]; }
+    if (route.length && t > end) return null;
+    return { cost: travel + 0.2 * wait, travel, wait, finish: t, load };
+  }
+
+  function routeCost(route, k) {
+    const e = evalRoute(route, k);
+    return e ? e.cost : Infinity;
+  }
+
+  function totalCost(sol) {
+    let c = sol.unassigned.length * PEN;
+    sol.routes.forEach((r, k) => { c += sol.costs[k]; });
+    return c;
+  }
+
+  function bestInsertions(sol, c) {
+    // vrací nejlepší a druhou nejlepší vložení (napříč auty)
+    let best = null, second = null;
+    const fixed = stops[c - 1].vehicle;
+    for (let k = 0; k < sol.routes.length; k++) {
+      if (fixed != null && fixed !== k) continue;
+      const r = sol.routes[k], vk = k;
+      let bestK = null;
+      for (let p = 0; p <= r.length; p++) {
+        const nr = r.slice(0, p).concat([c], r.slice(p));
+        const nc = routeCost(nr, vk);
+        if (nc === Infinity) continue;
+        const delta = nc - sol.costs[k];
+        if (!bestK || delta < bestK.delta) bestK = { k, p, delta };
+      }
+      if (!bestK) continue;
+      if (!best || bestK.delta < best.delta) { second = best; best = bestK; }
+      else if (!second || bestK.delta < second.delta) second = bestK;
+    }
+    return { best, second };
+  }
+
+  function insertAll(sol, list) {
+    let pending = list.slice();
+    while (pending.length) {
+      let pick = null, pickRegret = -Infinity, pickIdx = -1;
+      for (let i = 0; i < pending.length; i++) {
+        const { best, second } = bestInsertions(sol, pending[i]);
+        if (!best) continue;
+        const regret = second ? second.delta - best.delta : 1e5;
+        if (regret > pickRegret || (regret === pickRegret && best.delta < pick.best.delta)) {
+          pickRegret = regret; pick = { c: pending[i], best }; pickIdx = i;
+        }
+      }
+      if (!pick) break;
+      const { k, p } = pick.best;
+      sol.routes[k].splice(p, 0, pick.c);
+      sol.costs[k] = routeCost(sol.routes[k], k);
+      pending.splice(pickIdx, 1);
+    }
+    sol.unassigned = sol.unassigned.concat(pending);
+    return sol;
+  }
+
+  function clone(sol) {
+    return { routes: sol.routes.map(r => r.slice()), costs: sol.costs.slice(), unassigned: sol.unassigned.slice() };
+  }
+
+  function localSearch(sol) {
+    let improved = true, guard = 0;
+    while (improved && guard++ < 200) {
+      improved = false;
+      // 2-opt uvnitř trasy
+      for (let k = 0; k < sol.routes.length; k++) {
+        const r = sol.routes[k], vk = k;
+        for (let i = 0; i < r.length - 1; i++) for (let j = i + 1; j < r.length; j++) {
+          const nr = r.slice(0, i).concat(r.slice(i, j + 1).reverse(), r.slice(j + 1));
+          const nc = routeCost(nr, vk);
+          if (nc < sol.costs[k] - 1e-6) { sol.routes[k] = nr; sol.costs[k] = nc; improved = true; break; }
+        }
+      }
+      // přesun zastávky kamkoli
+      for (let a = 0; a < sol.routes.length && !improved; a++) {
+        for (let i = 0; i < sol.routes[a].length && !improved; i++) {
+          const c = sol.routes[a][i];
+          const ra = sol.routes[a].slice(0, i).concat(sol.routes[a].slice(i + 1));
+          const ca = routeCost(ra, a);
+          if (ca === Infinity) continue;
+          const fixedC = stops[c - 1].vehicle;
+          for (let b = 0; b < sol.routes.length && !improved; b++) {
+            if (fixedC != null && fixedC !== b) continue;
+            const base = a === b ? ra : sol.routes[b];
+            for (let p = 0; p <= base.length; p++) {
+              if (a === b && p === i) continue;
+              const rb = base.slice(0, p).concat([c], base.slice(p));
+              const cb = routeCost(rb, b);
+              if (cb === Infinity) continue;
+              const before = a === b ? sol.costs[a] : sol.costs[a] + sol.costs[b];
+              const after = a === b ? cb : ca + cb;
+              if (after < before - 1e-6) {
+                if (a === b) { sol.routes[a] = rb; sol.costs[a] = cb; }
+                else { sol.routes[a] = ra; sol.costs[a] = ca; sol.routes[b] = rb; sol.costs[b] = cb; }
+                improved = true; break;
+              }
+            }
+          }
+        }
+      }
+      if (sol.unassigned.length) {
+        const before = sol.unassigned.length;
+        const u = sol.unassigned; sol.unassigned = [];
+        insertAll(sol, u);
+        if (sol.unassigned.length < before) improved = true;
+      }
+    }
+    return sol;
+  }
+
+  function solve(timeLimitMs = 1500, seed = 1) {
+    let rnd = seed;
+    const rand = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
+    let sol = { routes: vehicles.map(() => []), costs: vehicles.map(() => 0), unassigned: [] };
+    insertAll(sol, Array.from({ length: n }, (_, i) => i + 1));
+    localSearch(sol);
+    let best = clone(sol), bestCost = totalCost(best);
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeLimitMs && n > 2) {
+      const cand = clone(best);
+      // zboř a postav znovu: vyjmi náhodných ~25 % zastávek
+      const removeCount = Math.max(2, Math.round(n * (0.1 + 0.25 * rand())));
+      const removed = cand.unassigned; cand.unassigned = [];
+      for (let x = 0; x < removeCount; x++) {
+        const k = Math.floor(rand() * cand.routes.length);
+        if (!cand.routes[k].length) continue;
+        const i = Math.floor(rand() * cand.routes[k].length);
+        removed.push(cand.routes[k].splice(i, 1)[0]);
+      }
+      cand.routes.forEach((r, k) => { cand.costs[k] = routeCost(r, k); });
+      insertAll(cand, removed.sort(() => rand() - 0.5));
+      localSearch(cand);
+      const cc = totalCost(cand);
+      if (cc < bestCost - 1e-6) { best = cand; bestCost = cc; }
+    }
+    return {
+      routes: best.routes.map((r, k) => ({ stops: r, ...evalRoute(r, k) })),
+      unassigned: best.unassigned,
+      
+    };
+  }
+
+  function schedule(route, k) {
+    const t0 = vehicles[k].start ?? start;
+    let t = t0, prev = 0, load = 0;
+    const out = [];
+    for (const c of route) {
+      const s = stops[c - 1];
+      t += dur[prev][c];
+      const arrive = t;
+      if (t < s.from) t = s.from;
+      load += s.demand;
+      out.push({ c, arrive, begin: t, load });
+      t += service; prev = c;
+    }
+    const back = route.length ? t + dur[prev][0] : t0;
+    return { out, back };
+  }
+
+  return { solve, evalRoute, schedule };
+}
+if (typeof module !== 'undefined') module.exports = { makeSolver };
+
+</script>
+<script>
+const COLORS = ['#2440C9','#D99A00','#0F8F73','#C23B87','#6A4BD6','#2C8FD6'];
+const KEY = 'pradelna-trasy-v1';
+const GKEY = 'pradelna-geocache-v1';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let state = {
+  depot: { address:'', lat:null, lng:null },
+  settings: { start:'04:00', end:'17:00', service:5, reload:20, date:'' },
+  drivers: [],
+  vehicles: [ {name:'Auto 1', capacity:30}, {name:'Auto 2', capacity:30} ],
+  stops: [],
+  result: null, stale: false,
+};
+let geocache = {};
+const DEFAULT_SETTINGS = Object.assign({}, state.settings);
+try { const s = localStorage.getItem(KEY); if (s) state = Object.assign(state, JSON.parse(s)); } catch(e){}
+state.settings = Object.assign({}, DEFAULT_SETTINGS, state.settings);
+state.drivers = state.drivers || [];
+const DEPOT = { address:'D&D laundry, Vidov 40, 370 07 Vidov', query:'Vidov 40, 370 07 Vidov' };
+if (state.depot.address !== DEPOT.address) state.depot = { address:DEPOT.address, query:DEPOT.query, lat:null, lng:null };
+state.drivers.forEach(d => { d.licenses = d.licenses || []; });
+state.vehicles.forEach((v,i) => { if (!v.id) v.id = 'v' + Date.now() + '_' + i; });
+if (!Array.isArray(state.customers)) state.customers = (Array.isArray(state.stops) ? state.stops : []).filter(x => x.address).map(x => ({...x, car:''}));
+// Zastávky linky = zákazníci zaškrtnutí u některého auta
+Object.defineProperty(state, 'stops', { configurable:true, enumerable:false,
+  get(){ return state.customers.filter(c => c.car && state.vehicles.some(v => v.id === c.car)); },
+  set(v){ if (!v || !v.length) state.customers.forEach(c => { c.car = ''; }); } });
+const openPicks = new Set(); const pickFilter = {};
+try { geocache = JSON.parse(localStorage.getItem(GKEY) || '{}'); } catch(e){}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+function saveCache(){ try { localStorage.setItem(GKEY, JSON.stringify(geocache)); } catch(e){} }
+let uid = Date.now();
+
+// ---------- čas ----------
+function parseTime(s){
+  s = String(s||'').trim(); if (!s) return null;
+  const m = s.match(/^(\d{1,2})(?:[:.](\d{2}))?$/); if (!m) return NaN;
+  const h = +m[1], mi = +(m[2]||0); if (h>24 || mi>59) return NaN;
+  return h*60+mi;
+}
+function parseWindow(s){
+  s = String(s||'').trim(); if (!s) return {from:null,to:null};
+  const parts = s.split(/\s*[-–—]\s*/);
+  if (parts.length !== 2) return {from:NaN,to:NaN};
+  return {from:parseTime(parts[0]), to:parseTime(parts[1])};
+}
+const fmt = (m) => { m = Math.round(m); return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`; };
+function klece(n){
+  n = +n || 0;
+  if (!Number.isInteger(n)) return `${String(n).replace('.', ',')} klece`;
+  if (n === 1) return '1 klec';
+  if (n >= 2 && n <= 4) return `${n} klece`;
+  return `${n} klecí`;
+}
+function defaultDay(){
+  const d = new Date();
+  if (d.getHours() >= 15) d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+const fmtDur = (m) => { m = Math.round(m); const h = Math.floor(m/60); return h ? `${h} h ${m%60} min` : `${m} min`; };
+
+// ---------- vykreslení formulářů ----------
+function bindSettings(){
+  $('tStart').value = state.settings.start; $('tEnd').value = state.settings.end;
+  $('service').value = state.settings.service;
+  state.settings.date = defaultDay(); save();
+  $('reload').value = state.settings.reload; $('dDate').value = state.settings.date;
+  [['dDate','date']].forEach(([id,k]) =>
+    $(id).addEventListener('input', e => { state.settings[k] = e.target.value; save(); if (!state.stale) renderResults(); }));
+  [['tStart','start'],['tEnd','end'],['service','service'],['reload','reload']].forEach(([id,k]) =>
+    $(id).addEventListener('input', e => { state.settings[k] = e.target.value; markStale(); }));
+  renderDepotGeo();
+}
+function renderDepotGeo(){
+  const d = state.depot, el = $('depotGeo');
+  el.textContent = d.lat != null ? 'Prádelna je na mapě (žlutý čtverec P). Polohu lze upravit přetažením.' : 'Poloha prádelny se vyhledá při prvním plánování.';
+}
+const LICENSES = ['B','BE','C1','C1E','C','CE'];
+const IMPLIES = { BE:['B'], C1:['B'], C1E:['B','BE','C1'], C:['B','C1'], CE:['B','BE','C1','C1E','C'] };
+function hasLicense(d, req){
+  if (!req) return true;
+  const own = new Set(d?.licenses || []);
+  (d?.licenses || []).forEach(l => (IMPLIES[l]||[]).forEach(x => own.add(x)));
+  return own.has(req);
+}
+function pickerHtml(v){
+  const mine = state.customers.filter(c => c.car === v.id);
+  const sum = mine.reduce((a,c) => a + (+c.demand || 0), 0);
+  const over = sum > +v.capacity;
+  const list = state.customers.length ? state.customers.map(c => {
+    const other = c.car && c.car !== v.id ? state.vehicles.find(x => x.id === c.car) : null;
+    return `<label class="pick-item ${other ? 'other' : ''}" data-s="${esc((c.name + ' ' + c.address).toLowerCase())}">
+      <input type="checkbox" data-pick="${c.id}" data-v="${v.id}" ${c.car === v.id ? 'checked' : ''}>
+      <span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : klece(c.demand)}</small></label>`; }).join('')
+    : '<p class="note" style="margin:0">Zatím žádní zákazníci. Přidejte je v záložce Zákazníci.</p>';
+  return `<details class="pick" data-v="${v.id}" ${openPicks.has(v.id) ? 'open' : ''}>
+    <summary>Zákazníci na lince: ${mine.length}<span class="note ${over ? 'warn' : ''}">${mine.length ? klece(sum) + ' z ' + klece(v.capacity) + (over ? ' – přetíženo' : '') : 'zatím nikdo'}</span></summary>
+    <div class="pick-body">
+      ${state.customers.length > 6 ? `<input class="pick-filter" data-v="${v.id}" placeholder="Hledat zákazníka…" value="${esc(pickFilter[v.id] || '')}">` : ''}
+      <div class="pick-list">${list}</div>
+    </div></details>`;
+}
+function applyPickFilters(){
+  document.querySelectorAll('details.pick').forEach(d => {
+    const q = (pickFilter[d.dataset.v] || '').toLowerCase().trim();
+    d.querySelectorAll('.pick-item').forEach(it => { it.hidden = !!q && !it.dataset.s.includes(q); });
+  });
+}
+const START_TIMES = ['3:00','3:30','4:00','7:00','7:30','8:00'];
+function startSelect(v, i){
+  const norm = t => { const m = parseTime(t); return m == null || isNaN(m) ? '' : fmt(m); };
+  const cur = norm(v.start) || norm(state.settings.start);
+  const opts = START_TIMES.slice();
+  if (cur && !opts.includes(cur)) opts.unshift(cur);
+  return `<select data-i="${i}" data-k="start">${opts.map(t => `<option value="${t}" ${t === cur ? 'selected' : ''}>${t}${START_TIMES.includes(t) ? '' : ' (po návratu z linky)'}</option>`).join('')}</select>`;
+}
+function renderVehicles(withCards = true){
+  if (withCards) renderCarCards();
+  $('vehicles').innerHTML = state.vehicles.length ? state.vehicles.map((v,i) => `
+    <div class="vehicle">
+      <span class="swatch" style="background:${COLORS[i%COLORS.length]}"></span>
+      <div class="vname">${esc(v.name)}<small>${[v.plate, klece(v.capacity), 'další linka ' + ((v.runs||0)+1)].filter(Boolean).map(esc).join(' · ')}</small></div>
+      <div><label>Řidič</label><select data-i="${i}" data-k="driver">
+        <option value="">— nevybrán —</option>
+        ${state.drivers.map(d => `<option value="${d.id}" ${v.driver===d.id?'selected':''}>${esc(d.name || 'Bez jména')}${hasLicense(d, v.license) ? '' : ' (chybí ' + esc(v.license) + ')'}</option>`).join('')}
+      </select></div>
+      <div><label>Vlastní výjezd</label>${startSelect(v, i)}</div>
+      ${v.driver && !hasLicense(state.drivers.find(d => d.id === v.driver), v.license) ? `<p class="note warn" style="grid-column:2 / -1;margin:0">Vybraný řidič nemá oprávnění ${esc(v.license)}, které toto auto vyžaduje.</p>` : ''}
+      ${pickerHtml(v)}
+    </div>`).join('') : '<p class="empty">Zatím žádná auta. Přidejte je v záložce Auta.</p>';
+  applyPickFilters();
+}
+$('vehicles').addEventListener('toggle', e => {
+  const d = e.target; if (!d.matches || !d.matches('details.pick')) return;
+  if (d.open) openPicks.add(d.dataset.v); else openPicks.delete(d.dataset.v);
+}, true);
+$('vehicles').addEventListener('change', e => {
+  const cid = e.target.dataset.pick; if (!cid) return;
+  const c = state.customers.find(x => x.id === cid); if (!c) return;
+  c.car = e.target.checked ? e.target.dataset.v : '';
+  markStale();
+  const y = window.scrollY, list = e.target.closest('.pick-list'), st = list ? list.scrollTop : 0, vid = e.target.dataset.v;
+  renderVehicles(false); drawMarkers();
+  const nl = document.querySelector(`details.pick[data-v="${vid}"] .pick-list`); if (nl) nl.scrollTop = st;
+  window.scrollTo(0, y);
+});
+$('vehicles').addEventListener('input', e => {
+  if (e.target.classList.contains('pick-filter')) { pickFilter[e.target.dataset.v] = e.target.value; applyPickFilters(); return; }
+  const i = e.target.dataset.i, k = e.target.dataset.k; if (i == null) return;
+  state.vehicles[i][k] = e.target.value;
+  if (k === 'driver') { save(); renderVehicles(); if (!state.stale) renderResults(); } else markStale();
+});
+function renderCarCards(){
+  $('carCards').innerHTML = state.vehicles.length ? state.vehicles.map((v,i) => `
+    <article class="card compact" style="--c:${COLORS[i%COLORS.length]}">
+      <div class="grid2">
+        <div><label>Název</label><input data-i="${i}" data-k="name" value="${esc(v.name)}"></div>
+        <div><label>SPZ</label><input data-i="${i}" data-k="plate" value="${esc(v.plate||'')}" placeholder="1C2 3456"></div>
+        <div><label>Kapacita (klecí)</label><input type="number" min="1" data-i="${i}" data-k="capacity" value="${esc(v.capacity)}"></div>
+        <div><label>Oprávnění</label><select data-i="${i}" data-k="license">
+          <option value="">—</option>
+          ${LICENSES.map(l => `<option ${v.license===l?'selected':''}>${l}</option>`).join('')}
+        </select></div>
+      </div>
+      <div class="card-foot"><span class="note">Další linka: ${(v.runs||0)+1}</span>
+        <button class="ghost" data-del="${i}" ${state.vehicles.length<2?'disabled':''}>Odebrat auto</button></div>
+    </article>`).join('') : '<p class="empty">Zatím žádná auta.</p>';
+}
+$('carCards').addEventListener('input', e => {
+  const i = e.target.dataset.i, k = e.target.dataset.k; if (i == null) return;
+  state.vehicles[i][k] = k === 'capacity' ? +e.target.value : e.target.value;
+  if (k === 'capacity') markStale(); else { save(); if (!state.stale) renderResults(); }
+  renderVehicles(false);
+});
+$('carCards').addEventListener('click', e => {
+  const i = e.target.dataset.del; if (i == null) return;
+  if (!confirm(`Odebrat ${state.vehicles[+i].name}?`)) return;
+  const gone = state.vehicles[+i].id;
+  state.customers.forEach(c => { if (c.car === gone) c.car = ''; });
+  state.vehicles.splice(+i,1); renderStops(); state.result = null; state.stale = false; save(); renderVehicles(); renderResults(); drawMarkers(); routeLayer.clearLayers();
+});
+$('addVehicle').onclick = () => {
+  state.vehicles.push({id:'v'+(uid++), name:`Auto ${state.vehicles.length+1}`, capacity: state.vehicles.at(-1)?.capacity || 30, plate:'', model:'', license:'', note:''});
+  renderVehicles(); markStale();
+  const cards = document.querySelectorAll('#carCards .card'); cards[cards.length-1]?.querySelector('input')?.focus();
+};
+
+function driverFoot(d, i){
+  const num = waNumber(d.phone);
+  const cars = state.vehicles.filter(v => v.license && !hasLicense(d, v.license)).map(v => v.name);
+  return `<span class="note ${d.phone && !num ? 'warn' : ''}">${d.phone ? (num ? 'Číslo je v pořádku' + (cars.length ? ' · nesmí řídit: ' + esc(cars.join(', ')) : '') : 'Telefon nemá platný tvar') : 'Chybí telefon'}</span>
+        <span>${num ? `<a href="https://wa.me/${num}" target="_blank" rel="noopener">Otevřít chat</a> ` : ''}<button class="ghost" data-del="${i}">Odebrat</button></span>`;
+}
+function renderDrivers(){
+  $('driverCards').innerHTML = state.drivers.length ? state.drivers.map((d,i) => {
+    return `
+    <article class="card">
+      <div class="grid2">
+        <div class="wide"><label>Jméno a příjmení</label><input data-i="${i}" data-k="name" value="${esc(d.name)}"></div>
+        <div class="wide"><label>Telefon pro WhatsApp</label><input data-i="${i}" data-k="phone" type="tel" value="${esc(d.phone)}" placeholder="+420 777 123 456"></div>
+        <div class="wide"><label>Řidičské oprávnění</label><div class="lic">
+          ${LICENSES.map(l => `<label><input type="checkbox" data-i="${i}" data-lic="${l}" ${d.licenses.includes(l)?'checked':''}>${l}</label>`).join('')}
+        </div></div>
+        <div class="wide"><label>Poznámky</label><textarea data-i="${i}" data-k="note" placeholder="Platnost průkazu, směny, dovolená…">${esc(d.note||'')}</textarea></div>
+      </div>
+      <div class="card-foot">${driverFoot(d, i)}</div>
+    </article>`; }).join('') : '<p class="empty">Zatím žádní řidiči.</p>';
+}
+$('driverCards').addEventListener('input', e => {
+  const i = e.target.dataset.i; if (i == null) return;
+  const d = state.drivers[i];
+  if (e.target.dataset.lic){
+    const l = e.target.dataset.lic;
+    d.licenses = e.target.checked ? [...new Set([...d.licenses, l])] : d.licenses.filter(x => x !== l);
+    save(); renderDrivers(); renderVehicles(); return;
+  }
+  d[e.target.dataset.k] = e.target.value; save();
+  e.target.closest('.card').querySelector('.card-foot').innerHTML = driverFoot(d, +i);
+  if (e.target.dataset.k !== 'note') renderVehicles();
+  if (!state.stale) renderResults();
+});
+$('driverCards').addEventListener('click', e => {
+  const i = e.target.dataset.del; if (i == null) return;
+  if (!confirm(`Odebrat řidiče ${state.drivers[+i].name || ''}?`)) return;
+  const id = state.drivers[+i].id;
+  state.drivers.splice(+i,1);
+  state.vehicles.forEach(v => { if (v.driver === id) v.driver = ''; });
+  save(); renderDrivers(); renderVehicles(); if (!state.stale) renderResults();
+});
+$('addDriver').onclick = () => {
+  state.drivers.push({id:'d'+(uid++), name:'', phone:'', licenses:['B'], note:''}); save(); renderDrivers(); renderVehicles();
+  const cards = document.querySelectorAll('#driverCards .card'); cards[cards.length-1]?.querySelector('input')?.focus();
+};
+
+// ---------- záložky ----------
+document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('nav.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+  $('tab-plan').hidden = b.dataset.tab !== 'plan';
+  $('tab-cars').hidden = b.dataset.tab !== 'cars';
+  $('tab-drivers').hidden = b.dataset.tab !== 'drivers';
+  $('tab-customers').hidden = b.dataset.tab !== 'customers';
+  if (b.dataset.tab === 'plan') setTimeout(() => map.invalidateSize(), 0);
+}));
+$('newDay').onclick = () => {
+  if (!confirm('Začít nový den? Zruší se zaškrtnutí zákazníků u aut a výsledek, všechna auta začnou linkou 1 a zruší se jim vlastní výjezd. Adresář zákazníků zůstane.')) return;
+  state.vehicles.forEach(v => { v.start = ''; v.runs = 0; });
+  state.settings.date = defaultDay(); $('dDate').value = state.settings.date;
+  state.stops = []; state.result = null; state.stale = false;
+  save(); renderVehicles(); renderStops(); drawMarkers(); routeLayer.clearLayers(); renderResults();
+  setStatus('Nový den připraven. U aut zaškrtněte zákazníky první linky.');
+};
+function prepareNext(){
+  const R = state.result; if (!R) return;
+  if (!confirm('Připravit další linky? Zaškrtnutí zákazníků se zruší a autům, která jela, se nastaví výjezd podle návratu.')) return;
+  const reload = +state.settings.reload || 0;
+  R.routes.forEach((r,k) => { const v = state.vehicles[k];
+    if (r.ids.length && v){ v.start = fmt(r.back + reload); v.runs = (v.runs||0) + 1; } });
+  state.stops = []; state.result = null; state.stale = false;
+  save(); renderVehicles(); renderStops(); drawMarkers(); routeLayer.clearLayers(); renderResults();
+  setStatus('Auta, která jela, mají výjezd podle návratu a číslo další linky. U aut, která zatím nejela, zkontrolujte výjezd. Zaškrtněte zákazníky další linky.');
+}
+
+// ---------- WhatsApp ----------
+function waNumber(p){
+  let d = String(p||'').replace(/[^\d+]/g,'');
+  if (d.startsWith('+')) d = d.slice(1); else if (d.startsWith('00')) d = d.slice(2); else if (d.length === 9) d = '420' + d;
+  return /^\d{9,15}$/.test(d) ? d : null;
+}
+function dayLabel(iso){
+  if (!iso) return '';
+  const [y,m,d] = iso.split('-').map(Number);
+  const s = new Date(y, m-1, d).toLocaleDateString('cs-CZ', {weekday:'long', day:'numeric', month:'numeric'});
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function driverMessage(k){
+  const R = state.result, r = R.routes[k], v = state.vehicles[k];
+  const byId = Object.fromEntries(state.customers.map(s => [s.id, s]));
+  const d = [state.depot.lat, state.depot.lng];
+  const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
+  const day = dayLabel(R.date);
+  const lines = r.ids.map((id,i) => { const s = byId[id], t = r.times[i];
+    const bits = [s.kind==='R' ? 'rozvoz' : 'vyzvednutí', klece(s.demand)]; if (s.window) bits.push('okno ' + s.window);
+    return `${i+1}. ${fmt(t.begin)} ${s.name ? s.name + ', ' : ''}${s.address} (${bits.join(', ')})${s.note ? '\n   ' + s.note : ''}`; });
+  const links = gmapsLinks(pts);
+  return [
+    `Linka ${r.linka} – ${v.name}${day ? ' – ' + day : ''}`,
+    `Výjezd z prádelny v ${fmt(r.start)}.`,
+    '', ...lines, '',
+    `Návrat do prádelny kolem ${fmt(r.back)}, náklad celkem ${klece(r.load)}.`,
+    `Navigace${links.length > 1 ? ' (po částech)' : ''}:`, ...links
+  ].join('\n');
+}
+
+// Zastávky se už nezadávají zvlášť; tato funkce jen překreslí vše, co na zákaznících závisí.
+function renderStops(){ renderVehicles(false); renderCustomers(); }
+
+function custGeo(c){
+  return c.lat != null ? '<span class="note">Na mapě nalezeno</span>' : (c.geoFailed ? '<span class="note warn">Adresu se nepodařilo najít. Doplňte město nebo PSČ.</span>' : '<span class="note">Poloha se vyhledá při plánování</span>');
+}
+function renderCustomers(){
+  const q = ($('custFilter').value || '').toLowerCase().trim();
+  const list = state.customers.map((c,i) => [c,i]).filter(([c]) => !q || (c.name + ' ' + c.address).toLowerCase().includes(q));
+  $('custCards').innerHTML = state.customers.length ? (list.length ? list.map(([c,i]) => `
+    <article class="card" data-ci="${i}">
+      <div class="grid2">
+        <div class="wide"><label>Název (hotel)</label><input data-k="name" value="${esc(c.name)}" placeholder="např. Hotel Lípa"></div>
+        <div class="wide"><label>Adresa</label><input data-k="address" value="${esc(c.address)}" placeholder="Ulice č. p., PSČ Město"></div>
+        <div><label>Obvykle klecí</label><input data-k="demand" type="number" min="0" value="${esc(c.demand)}"></div>
+        <div><label>Typ</label><select data-k="kind">
+          <option value="V" ${c.kind==='V'?'selected':''}>Vyzvednutí</option>
+          <option value="R" ${c.kind==='R'?'selected':''}>Rozvoz</option></select></div>
+        <div class="wide"><label>Časové okno</label><input data-k="window" value="${esc(c.window)}" placeholder="kdykoli, nebo např. 5:00-7:00"></div>
+        <div class="wide"><label>Poznámka pro řidiče</label><textarea data-k="note" placeholder="Vjezd ze dvora, klíč na recepci…">${esc(c.note||'')}</textarea></div>
+      </div>
+      <div class="card-foot">${custGeo(c)}<button class="ghost" data-del>Odebrat</button></div>
+    </article>`).join('') : '<p class="empty">Nikdo neodpovídá hledání.</p>')
+    : '<p class="empty">Zatím žádní zákazníci. Přidejte je jednotlivě, nebo vložte celý seznam.</p>';
+}
+$('custFilter').addEventListener('input', renderCustomers);
+$('custCards').addEventListener('input', e => {
+  const card = e.target.closest('.card'), k = e.target.dataset.k; if (!card || !k) return;
+  const c = state.customers[+card.dataset.ci];
+  c[k] = k === 'demand' ? +e.target.value : e.target.value;
+  if (k === 'address'){ c.lat = c.lng = null; c.geoFailed = false; card.querySelector('.card-foot').firstElementChild.outerHTML = custGeo(c); }
+  if (c.car && k !== 'note') markStale(); else save();
+  if (k === 'name' || k === 'demand') renderVehicles(false);
+});
+$('custCards').addEventListener('click', e => {
+  if (!e.target.hasAttribute('data-del')) return;
+  const ci = +e.target.closest('.card').dataset.ci, c = state.customers[ci];
+  if (!confirm(`Odebrat zákazníka ${c.name || c.address}?`)) return;
+  const wasOnLine = !!c.car;
+  state.customers.splice(ci, 1);
+  if (wasOnLine && state.result){ state.result = null; state.stale = false; routeLayer.clearLayers(); renderResults(); }
+  save(); renderCustomers(); renderVehicles(false); drawMarkers();
+});
+$('addCustomer').onclick = () => {
+  $('custFilter').value = '';
+  state.customers.push({ id:'c'+(uid++), name:'', address:'', demand:1, window:'', kind:'V', note:'', car:'', lat:null, lng:null, label:'' });
+  save(); renderCustomers(); renderVehicles(false);
+  const cards = document.querySelectorAll('#custCards .card'); cards[cards.length-1]?.querySelector('input')?.focus();
+};
+$('toggleImport').onclick = () => { $('importBox').hidden = !$('importBox').hidden; };
+$('doImport').onclick = () => {
+  const lines = $('importText').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  let added = 0, dup = 0;
+  for (const line of lines){
+    const f = (line.includes('\t') ? line.split('\t') : line.split(';')).map(x => x.trim());
+    const [name, address, qty, win, kind] = f.length === 1 ? ['', f[0]] : f;
+    if (!address) continue;
+    if (state.customers.some(c => c.address.trim().toLowerCase() === address.toLowerCase() && (c.name||'').trim().toLowerCase() === (name||'').toLowerCase())) { dup++; continue; }
+    state.customers.push({ id:'c'+(uid++), name: name||'', address, demand: qty ? (parseFloat(qty.replace(',','.'))||0) : 1,
+      window: win||'', kind: /^r/i.test(kind||'') ? 'R' : 'V', note:'', car:'', lat:null, lng:null, label:'' });
+    added++;
+  }
+  $('importText').value = ''; $('importBox').hidden = true;
+  save(); renderCustomers(); renderVehicles(false);
+  alert(`Přidáno ${added} zákazníků.` + (dup ? ` ${dup} už v adresáři bylo, ty jsem přeskočil.` : ''));
+};
+
+function setStatus(msg, err){ const el = $('status'); el.textContent = msg; el.className = err ? 'err' : ''; }
+function markStale(){ if (state.result){ state.stale = true; renderStaleNote(); } save(); }
+
+// ---------- mapa ----------
+const map = L.map('map', { scrollWheelZoom:false }).setView([49.82, 15.47], 7);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  maxZoom:19, subdomains:'abcd',
+  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+}).addTo(map);
+const markerLayer = L.layerGroup().addTo(map);
+const routeLayer = L.layerGroup().addTo(map);
+
+function stopColor(id){
+  if (!state.result || state.stale) return null;
+  const k = state.result.routes.findIndex(r => r.ids.includes(id));
+  return k >= 0 ? COLORS[k%COLORS.length] : null;
+}
+function drawMarkers(fit){
+  markerLayer.clearLayers();
+  const pts = [];
+  const d = state.depot;
+  if (d.lat != null){
+    const m = L.marker([d.lat,d.lng], {draggable:true, icon:L.divIcon({className:'', html:'<div class="pin depot" title="Prádelna">P</div>', iconSize:[30,30], iconAnchor:[15,15]})})
+      .bindTooltip('Prádelna').addTo(markerLayer);
+    m.on('dragend', e => { const p = e.target.getLatLng(); d.lat=p.lat; d.lng=p.lng; d.label='upraveno ručně na mapě'; renderDepotGeo(); markStale(); });
+    pts.push([d.lat,d.lng]);
+  }
+  state.stops.forEach((s,i) => {
+    if (s.lat == null) return;
+    const c = stopColor(s.id);
+    const style = c ? `style="border-color:${c};background:${c};color:#fff"` : '';
+    const m = L.marker([s.lat,s.lng], {draggable:true, icon:L.divIcon({className:'', html:`<div class="pin" ${style}>${i+1}</div>`, iconSize:[26,26], iconAnchor:[13,13]})})
+      .bindTooltip(`${i+1}. ${esc(s.name||s.address)}`).addTo(markerLayer);
+    m.on('dragend', e => { const p = e.target.getLatLng(); s.lat=p.lat; s.lng=p.lng; s.label='upraveno ručně na mapě'; renderStops(); markStale(); });
+    pts.push([s.lat,s.lng]);
+  });
+  if (fit && pts.length) map.fitBounds(pts, {padding:[30,30], maxZoom:14});
+}
+
+// ---------- geokódování (OpenStreetMap Nominatim) ----------
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+async function geocode(q){
+  const key = q.trim().toLowerCase();
+  if (geocache[key]) return geocache[key];
+  const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=cz&accept-language=cs&q=' + encodeURIComponent(q);
+  const res = await fetch(url, {headers:{'Accept':'application/json'}});
+  if (!res.ok) throw new Error('Vyhledávání adres neodpovídá (' + res.status + ').');
+  const data = await res.json();
+  await sleep(1100); // limit služby: 1 dotaz za sekundu
+  const hit = data[0] ? { lat:+data[0].lat, lng:+data[0].lon, label:data[0].display_name.split(',').slice(0,3).join(',') } : { none:true };
+  geocache[key] = hit; saveCache();
+  return hit;
+}
+async function geocodeAll(){
+  const todo = [];
+  if (state.depot.address && state.depot.lat == null) todo.push(state.depot);
+  state.stops.forEach(s => { if (s.address && s.lat == null) todo.push(s); });
+  let done = 0, failed = 0;
+  for (const item of todo){
+    setStatus(`Hledám adresy… ${++done} z ${todo.length}`);
+    const r = await geocode(item.query || item.address);
+    if (r.none){ item.geoFailed = true; failed++; }
+    else { item.lat = r.lat; item.lng = r.lng; item.label = r.label; item.geoFailed = false; }
+  }
+  save(); renderStops(); renderDepotGeo(); drawMarkers(true);
+  return failed;
+}
+$('geocodeBtn').onclick = async () => {
+  lock(true);
+  try {
+    const failed = await geocodeAll();
+    setStatus(failed ? `${failed} adres se nepodařilo najít — jsou označené červeně.` : 'Adresy jsou na mapě. Polohu můžete opravit přetažením špendlíku.', !!failed);
+  } catch(e){ setStatus(e.message + ' Zkontrolujte připojení k internetu.', true); }
+  lock(false);
+};
+function lock(on){ $('plan').disabled = on; $('geocodeBtn').disabled = on; }
+
+// ---------- matice dojezdů (OSRM) ----------
+function haversine(a,b){
+  const R=6371, toR=x=>x*Math.PI/180;
+  const dLat=toR(b[0]-a[0]), dLng=toR(b[1]-a[1]);
+  const h=Math.sin(dLat/2)**2+Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+async function getMatrix(points){
+  const coords = points.map(p => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(';');
+  try {
+    if (points.length > 100) throw new Error('too many');
+    const res = await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration,distance`);
+    const data = await res.json();
+    if (data.code !== 'Ok') throw new Error(data.code);
+    return { dur: data.durations.map(r => r.map(x => (x ?? 1e5)/60)), dist: data.distances.map(r => r.map(x => (x ?? 0)/1000)), road:true };
+  } catch(e){
+    // nouzově: vzdušná čára × 1,35 a průměr 35 km/h
+    const dist = points.map(a => points.map(b => haversine(a,b)*1.35));
+    return { dur: dist.map(r => r.map(km => km/35*60)), dist, road:false };
+  }
+}
+
+// ---------- plánování ----------
+$('plan').onclick = async () => {
+  const st = state.settings;
+  const start = parseTime(st.start), end = parseTime(st.end), service = +st.service || 0;
+  if (!state.stops.length) return setStatus('U aut zaškrtněte zákazníky, které mají na této lince objet.', true);
+  if (start == null || isNaN(start) || end == null || isNaN(end) || end <= start) return setStatus('Zkontrolujte čas výjezdu a návratu (např. 08:00 a 17:00).', true);
+  for (const [i,s] of state.stops.entries()){
+    const w = parseWindow(s.window);
+    if (isNaN(w.from) || isNaN(w.to)) return setStatus(`${s.name || s.address}: časové okno zapište jako 9:00-11:00 (záložka Zákazníci).`, true);
+  }
+  if (state.vehicles.some(v => !(v.capacity > 0))) return setStatus('Každé auto potřebuje kapacitu větší než nula.', true);
+  for (const v of state.vehicles){
+    const t = parseTime(v.start);
+    if (t != null && isNaN(t)) return setStatus(`${v.name}: vlastní výjezd zapište jako 7:20.`, true);
+  }
+
+  lock(true);
+  try {
+    await geocodeAll();
+    if (state.depot.lat == null){ lock(false); return setStatus('Adresu prádelny se nepodařilo najít. Upřesněte ji.', true); }
+    const usable = state.stops.filter(s => s.lat != null);
+    const skipped = state.stops.filter(s => s.lat == null);
+    setStatus('Zjišťuji dojezdové časy mezi zastávkami…');
+    const points = [[state.depot.lat, state.depot.lng]].concat(usable.map(s => [s.lat, s.lng]));
+    const M = await getMatrix(points);
+    setStatus('Počítám nejlepší rozdělení tras…');
+    await sleep(30);
+    const stops = usable.map(s => { const w = parseWindow(s.window);
+      const vi = s.car ? state.vehicles.findIndex(v => v.id === s.car) : -1;
+      return { demand: +s.demand || 0, from: w.from ?? 0, to: w.to ?? 24*60, vehicle: vi >= 0 ? vi : null }; });
+    const vehicles = state.vehicles.map(v => { const t = parseTime(v.start); return { capacity:+v.capacity, start: t == null ? start : t }; });
+    const over = state.vehicles.map((v,k) => [v, stops.filter(x => x.vehicle === k).reduce((a,x) => a + x.demand, 0)]).filter(([v,sum]) => sum > v.capacity);
+    const S = makeSolver({ dur:M.dur, stops, vehicles, start, end, service });
+    const sol = S.solve(Math.min(4000, 800 + usable.length*40));
+    state.result = {
+      road: M.road, start, date: st.date,
+      routes: sol.routes.map((r,k) => {
+        const sc = S.schedule(r.stops, k);
+        let km = 0, prev = 0; r.stops.forEach(c => { km += M.dist[prev][c]; prev = c; }); if (r.stops.length) km += M.dist[prev][0];
+        return { ids: r.stops.map(c => usable[c-1].id), times: sc.out.map(x => ({arrive:x.arrive, begin:x.begin, load:x.load})),
+                 linka: (state.vehicles[k].runs||0) + 1, start: vehicles[k].start, back: sc.back, km, travel: r.travel || 0, load: r.load || 0 };
+      }),
+      unassigned: sol.unassigned.map(c => usable[c-1].id).concat(skipped.map(s => s.id)),
+    };
+    state.stale = false; save();
+    drawMarkers(true); renderResults(); await drawRoutes();
+    const nu = state.result.unassigned.length;
+    if (over.length) return setStatus(`Hotovo, ale ${over.map(([v,sum]) => `${v.name} má zaškrtnuto ${klece(sum)} a uveze ${klece(v.capacity)}`).join('; ')}. Část zákazníků proto zůstala nezařazená, přesuňte je jinému autu nebo na další linku.`, true);
+    setStatus(nu ? `Hotovo, ale ${nu} zastávek se do tras nevešlo — viz níže.` : (M.road ? 'Hotovo.' : 'Hotovo. Dojezdy jsou jen odhadnuté vzdušnou čarou, silniční data se nepodařilo načíst.'), !!nu);
+  } catch(e){
+    setStatus(e.message + ' Zkontrolujte připojení k internetu.', true);
+  }
+  lock(false);
+};
+
+async function drawRoutes(){
+  routeLayer.clearLayers();
+  if (!state.result || state.stale) return;
+  const byId = Object.fromEntries(state.customers.map(s => [s.id, s]));
+  if (state.result.routes.some(r => r.ids.some(id => !byId[id] || byId[id].lat == null))) return;
+  const d = [state.depot.lat, state.depot.lng];
+  for (const [k,r] of state.result.routes.entries()){
+    if (!r.ids.length) continue;
+    const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
+    let line = pts;
+    try {
+      const coords = pts.map(p => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(';');
+      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+      const data = await res.json();
+      if (data.code === 'Ok') line = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+    } catch(e){}
+    L.polyline(line, {color:COLORS[k%COLORS.length], weight:4, opacity:.85}).addTo(routeLayer);
+  }
+}
+
+function gmapsLinks(pts){
+  // Google Mapy zvládnou v odkazu start, cíl a max. 9 mezizastávek
+  const links = [];
+  for (let i = 0; i < pts.length - 1; i += 10){
+    const chunk = pts.slice(i, Math.min(i + 11, pts.length));
+    const ll = p => `${p[0].toFixed(6)},${p[1].toFixed(6)}`;
+    const wp = chunk.slice(1,-1).map(ll).join('|');
+    links.push(`https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${ll(chunk[0])}&destination=${ll(chunk.at(-1))}${wp ? '&waypoints='+encodeURIComponent(wp) : ''}`);
+  }
+  return links;
+}
+
+function renderStaleNote(){
+  if (state.result && state.stale && !document.querySelector('.stale')){
+    renderResults(); routeLayer.clearLayers(); drawMarkers();
+  }
+}
+
+function renderResults(){
+  const R = state.result, box = $('results');
+  if (!R){ box.innerHTML = ''; return; }
+  const byId = Object.fromEntries(state.customers.map((s,i) => [s.id, {...s, n:i+1}]));
+  if (R.routes.some(r => r.ids.some(id => !byId[id]))) { state.result = null; save(); box.innerHTML = ''; return; }
+  const used = R.routes.filter(r => r.ids.length);
+  const totKm = used.reduce((a,r) => a + r.km, 0), totT = used.reduce((a,r) => a + r.travel, 0);
+  const d = [state.depot.lat, state.depot.lng];
+  let html = state.stale ? '<p class="stale">Údaje se od výpočtu změnily. Klikněte na „Naplánovat trasy“ znovu.</p>' : '';
+  html += `<div class="summary"><div><strong>${totKm.toFixed(0)} km</strong> <span>celkem</span></div>
+    <div><strong>${fmtDur(totT)}</strong> <span>čisté jízdy</span></div>
+    <div><strong>${used.length} z ${R.routes.length}</strong> <span>aut vyjíždí</span></div></div>
+    <div class="row-actions res"><button onclick="window.print()">Vytisknout listy pro řidiče</button>
+      <button id="nextLinka" ${state.stale ? 'disabled' : ''}>Připravit další linky</button></div>`;
+  html += '<div class="tickets">';
+  R.routes.forEach((r,k) => {
+    const v = state.vehicles[k] || {name:`Auto ${k+1}`, capacity:'?'};
+    const c = COLORS[k%COLORS.length];
+    if (!r.ids.length){
+      html += `<article class="ticket" style="--c:${c}"><h3>${esc(v.name)}</h3><p class="meta">Na této lince nevyjíždí.</p></article>`; return;
+    }
+    const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
+    const links = gmapsLinks(pts);
+    const drv = state.drivers.find(x => x.id === v.driver);
+    const num = drv && waNumber(drv.phone);
+    let wa;
+    if (state.stale) wa = '<span class="note">Před odesláním trasy přepočítejte.</span>';
+    else if (!drv) wa = '<span class="note">Přiřaďte autu řidiče, aby šla linka poslat na WhatsApp.</span>';
+    else if (!num) wa = `<span class="note">Doplňte řidiči ${esc(drv.name)} platné telefonní číslo.</span>`;
+    else if (!hasLicense(drv, v.license)) wa = `<span class="note warn">${esc(drv.name)} nemá oprávnění ${esc(v.license)} pro toto auto. Vyberte jiného řidiče.</span>`;
+    else wa = `<a class="wa" href="https://wa.me/${num}?text=${encodeURIComponent(driverMessage(k))}" target="_blank" rel="noopener">Poslat na WhatsApp – ${esc(drv.name)}</a>`;
+    html += `<article class="ticket" style="--c:${c}">
+      <h3>${esc(v.name)} · linka ${esc(r.linka)}</h3>
+      ${drv ? `<div class="driver-line">${esc(drv.name)}</div>` : ''}
+      <div class="meta"><span>${r.ids.length} zastávek</span><span>${r.km.toFixed(1).replace('.', ',')} km</span>
+        <span>náklad ${esc(r.load)} z ${esc(klece(v.capacity))}</span><span>zpět ${fmt(r.back)}</span></div>
+      <ol>
+        <li><span class="t">${fmt(r.start ?? R.start)}</span><span><span class="who">Výjezd z prádelny</span></span></li>
+        ${r.ids.map((id,i) => { const s = byId[id], t = r.times[i];
+          const wait = t.begin - t.arrive > 1 ? ` · čekání ${fmtDur(t.begin - t.arrive)}` : '';
+          return `<li><span class="t">${fmt(t.begin)}</span><span>
+            <span class="who">${esc(s.name || 'Zastávka '+s.n)}</span><span class="kind ${s.kind==='R'?'r':'v'}">${s.kind==='R'?'rozvoz':'vyzvednutí'}</span>
+            <div class="sub">${esc(s.address)} · ${esc(klece(s.demand))}${s.window ? ' · okno '+esc(s.window) : ''}${wait}${s.note ? '<br>' + esc(s.note) : ''}</div></span></li>`; }).join('')}
+        <li><span class="t">${fmt(r.back)}</span><span><span class="who">Návrat do prádelny</span></span></li>
+      </ol>
+      <div class="links">${wa}</div>
+      <div class="links">${links.map((u,i) => `<a href="${u}" target="_blank" rel="noopener">Navigace v Google Mapách${links.length>1 ? ' (část '+(i+1)+')' : ''}</a>`).join('')}</div>
+    </article>`;
+  });
+  html += '</div>';
+  if (R.unassigned.length){
+    html += `<div class="unassigned"><strong>Nevešlo se do tras:</strong> ${R.unassigned.map(id => byId[id] ? esc(byId[id].name || byId[id].address) : '').filter(Boolean).join(', ')}.
+      <div class="hint" style="margin-top:.3rem">Obvykle pomůže rozšířit časové okno, posunout návrat, přidat auto nebo zvýšit kapacitu. Zákazníka můžete zaškrtnout u jiného auta, nebo ho nechat na další linku. Zastávky bez nalezené adresy se také počítají sem.</div></div>`;
+  }
+  box.innerHTML = html;
+  $('nextLinka')?.addEventListener('click', prepareNext);
+}
+
+// ---------- start ----------
+bindSettings(); renderDrivers(); renderVehicles(); renderCustomers(); drawMarkers(true); renderResults(); drawRoutes();
+</script>
+</body>
+</html>
