@@ -2,7 +2,11 @@
 <html lang="cs">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2440C9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trasy">
 <title>Trasy prádelny</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -230,13 +234,56 @@ button.danger:hover{border-color:var(--err)}
 .unassigned strong{color:var(--err)}
 
 @media (max-width: 900px){
-  .vehicle{grid-template-columns:14px 1fr 1fr}
-  .vehicle > :nth-child(5){grid-column:2}
   .layout{grid-template-columns:1fr; padding:1rem}
   #map{position:relative; top:0; height:340px}
   .grid4{grid-template-columns:1fr 1fr}
   .stop{grid-template-columns:24px 1fr; grid-template-areas:"n name" ". addr" ". qty" ". win"}
 }
+/* ---------- telefon ---------- */
+@media (max-width: 700px){
+  body{font-size:16px; padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+  input, select, textarea, button{font-size:16px}
+  header.top{position:sticky; top:0; z-index:500; padding:.55rem 1rem; gap:.5rem; flex-wrap:nowrap}
+  header.top h1{font-size:1.15rem; white-space:nowrap}
+  header.top > p, #whoami{display:none}
+  #lockNow{margin-left:auto; padding:.35rem .5rem}
+  nav.tabs{position:fixed; left:0; right:0; bottom:0; z-index:600; margin:0; gap:0; background:var(--surface);
+    border-top:1px solid var(--line); padding:0 0 env(safe-area-inset-bottom); display:grid; grid-template-columns:repeat(4,1fr)}
+  nav.tabs button{padding:.85rem .2rem .8rem; border-bottom:0; border-top:3px solid transparent; font-size:.9rem}
+  nav.tabs button[aria-selected="true"]{border-top-color:var(--blue); color:var(--blue)}
+  .layout{padding:.6rem .6rem 0; gap:.6rem}
+  .panel{padding:.85rem .8rem; margin-bottom:.6rem; border-radius:12px}
+  .panel > .hint{display:none}
+  .mode-hint{font-size:.85rem}
+  .vehicle{grid-template-columns:14px 1fr 1fr; grid-template-areas:"sw name name" "drv drv st" "pick pick pick"; gap:.5rem; padding:.8rem 0}
+  .vehicle .swatch{grid-area:sw; margin:0} .vehicle .vname{grid-area:name} .vehicle .v-drv{grid-area:drv} .vehicle .v-start{grid-area:st}
+  .vehicle > .note.warn{grid-column:1 / -1 !important}
+  details.pick{grid-area:pick; grid-column:1 / -1}
+  details.pick summary{padding:.75rem .7rem}
+  .pick-list{max-height:55vh}
+  .pick-item{padding:.6rem .2rem; font-size:1rem !important}
+  .pick-item input{width:22px; height:22px}
+  .pick-item small{display:none}
+  .pick-item.other small{display:inline}
+  .pick-order{columns:1}
+  .plan-bar{position:fixed; left:0; right:0; bottom:calc(52px + env(safe-area-inset-bottom)); z-index:550; margin:0; border-radius:0;
+    border-left:0; border-right:0; padding:.55rem .75rem; box-shadow:0 -4px 14px rgba(0,0,0,.08)}
+  .plan-bar .row-actions{flex-wrap:nowrap}
+  .plan-bar #plan{flex:1; padding:.8rem}
+  .plan-bar #geocodeBtn{display:none}
+  .plan-bar #newDay{font-size:.85rem; white-space:nowrap}
+  .plan-bar #status{font-size:.85rem; margin:.3rem 0 0}
+  .plan-bar #status:empty{display:none}
+  .summary{gap:1rem; margin-top:.4rem} .summary strong{font-size:1.1rem}
+  .row-actions.res button{flex:1 1 45%}
+  .tickets{grid-template-columns:1fr}
+  .ticket{padding:.9rem .8rem .8rem 1.1rem}
+  .ticket .wa{display:block; flex:1; text-align:center; padding:.85rem; font-size:1rem}
+  .registry{padding:.8rem .6rem 1rem}
+  .registry .lead{font-size:.88rem}
+  .sync-bar{bottom:calc(64px + env(safe-area-inset-bottom))}
+}
+body.locked{padding-bottom:0}
 @media print{
   header.top, .left, #map, .registry, .row-actions.res, .stale, .ticket .links, .wa{display:none !important}
   .layout{display:block; padding:0}
@@ -251,7 +298,7 @@ button.danger:hover{border-color:var(--err)}
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 18:10</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 18:25</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -276,7 +323,7 @@ button.danger:hover{border-color:var(--err)}
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 18:10</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 18:25</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -341,11 +388,11 @@ button.danger:hover{border-color:var(--err)}
       <div id="vehicles"></div>
     </div>
 
-    <div class="panel">
+    <div class="panel plan-bar" id="planBar">
       <div class="row-actions" style="margin-top:0">
         <button id="plan" class="primary">Naplánovat trasy</button>
         <button id="geocodeBtn">Jen najít adresy</button>
-        <button id="newDay" class="ghost">Začít nový den (linka 1)</button>
+        <button id="newDay" class="ghost">Nový den</button>
       </div>
       <p id="status" role="status" aria-live="polite"></p>
     </div>
@@ -739,11 +786,11 @@ function renderVehicles(withCards = true){
     <div class="vehicle">
       <span class="swatch" style="background:${COLORS[i%COLORS.length]}"></span>
       <div class="vname">${esc(v.name)}<small>${[v.plate, klece(v.capacity), 'další linka ' + ((v.runs||0)+1)].filter(Boolean).map(esc).join(' · ')}</small></div>
-      <div><label>Řidič</label><select data-i="${i}" data-k="driver">
+      <div class="v-drv"><label>Řidič</label><select data-i="${i}" data-k="driver">
         <option value="">— nevybrán —</option>
         ${state.drivers.map(d => `<option value="${d.id}" ${v.driver===d.id?'selected':''}>${esc(d.name || 'Bez jména')}${hasLicense(d, v.license) ? '' : ' (chybí ' + esc(v.license) + ')'}</option>`).join('')}
       </select></div>
-      <div><label>Vlastní výjezd</label>${startSelect(v, i)}</div>
+      <div class="v-start"><label>Výjezd</label>${startSelect(v, i)}</div>
       ${v.driver && !hasLicense(state.drivers.find(d => d.id === v.driver), v.license) ? `<p class="note warn" style="grid-column:2 / -1;margin:0">Vybraný řidič nemá oprávnění ${esc(v.license)}, které toto auto vyžaduje.</p>` : ''}
       ${pickerHtml(v)}
     </div>`).join('') : '<p class="empty">Zatím žádná auta. Přidejte je v záložce Auta.</p>';
@@ -866,7 +913,7 @@ document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('cl
   $('tab-cars').hidden = b.dataset.tab !== 'cars';
   $('tab-drivers').hidden = b.dataset.tab !== 'drivers';
   $('tab-customers').hidden = b.dataset.tab !== 'customers';
-  if (b.dataset.tab === 'plan') setTimeout(() => map.invalidateSize(), 0);
+  window.scrollTo(0, 0);
 }));
 $('newDay').onclick = async () => {
   if (!(await ask('Začít nový den? Zruší se zaškrtnutí zákazníků u aut a výsledek, všechna auta začnou linkou 1 a zruší se jim vlastní výjezd. Adresář zákazníků zůstane.', 'Začít nový den'))) return;
