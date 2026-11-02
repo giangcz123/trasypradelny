@@ -242,7 +242,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 16:40</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 16:45</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -267,7 +267,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 16:40</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 16:45</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -871,7 +871,7 @@ function renderCustomers(){
   $('custCards').innerHTML = state.customers.length ? (list.length ? `<div class="crow-head" aria-hidden="true"><span>Název hotelu</span><span>Adresa</span><span>Kdy se jezdí</span><span>Závoz</span><span></span></div>` + list.map(([c,i]) => `
     <article class="card crow" data-ci="${i}">
       <div class="c-name"><input data-k="name" value="${esc(c.name)}" placeholder="Název hotelu" aria-label="Název hotelu"></div>
-      <div class="c-addr"><input data-k="address" value="${esc(c.address)}" placeholder="Ulice č. p., PSČ Město" aria-label="Adresa"><div class="card-foot">${custGeo(c)}</div></div>
+      <div class="c-addr"><input data-k="address" value="${esc(c.address)}" placeholder="Ulice č. p., PSČ Město" aria-label="Adresa"></div>
       <div class="lic days c-days" role="group" aria-label="Kdy se jezdí">
         <label class="every"><input type="checkbox" data-day="all" ${(c.days||[]).length === 7 ? 'checked' : ''}>Každý den</label>
         ${DAYS.map(([k,l]) => `<label><input type="checkbox" data-day="${k}" ${(c.days||[]).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
@@ -903,7 +903,7 @@ $('custCards').addEventListener('input', e => {
   }
   const k = e.target.dataset.k; if (!k) return;
   c[k] = k === 'demand' ? +e.target.value : e.target.value;
-  if (k === 'address'){ c.lat = c.lng = null; c.geoFailed = false; card.querySelector('.card-foot').firstElementChild.outerHTML = custGeo(c); }
+  if (k === 'address'){ c.lat = c.lng = null; c.geoFailed = false; }
   if (c.car && k !== 'note') markStale(); else save();
   if (k === 'name' || k === 'demand') renderVehicles(false);
 });
