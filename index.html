@@ -25,6 +25,15 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none !important}
+#lock{position:fixed; inset:0; z-index:1000; background:var(--bg); display:grid; place-items:center; padding:16px}
+body.locked > :not(#lock):not(script){display:none !important}
+.lock-card{width:100%; max-width:380px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1.6rem 1.4rem; display:grid; gap:.55rem}
+.lock-card h1{font-size:1.6rem}
+.lock-sub{margin:-.3rem 0 .4rem; color:var(--muted)}
+.lock-text{margin:0 0 .3rem; color:var(--muted); font-size:.9rem}
+.lock-msg{min-height:1.2em; margin:0; color:var(--err); font-size:.9rem}
+.lock-card button.primary{padding:.65rem}
+#lockNow{margin-left:.5rem}
 html,body{margin:0}
 body{
   background:var(--bg); color:var(--ink);
@@ -194,6 +203,19 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 </style>
 </head>
 <body>
+<div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
+  <form id="lockForm" class="lock-card" autocomplete="off">
+    <h1 id="lockTitle">Trasy prádelny</h1>
+    <p class="lock-sub">D&amp;D laundry, Vidov</p>
+    <p id="lockIntro" class="lock-text"></p>
+    <label for="pw1">Heslo</label>
+    <input id="pw1" type="password" autocomplete="current-password" required>
+    <div id="pw2wrap" hidden><label for="pw2">Heslo znovu</label><input id="pw2" type="password" autocomplete="new-password"></div>
+    <p id="lockMsg" class="lock-msg" role="alert"></p>
+    <button id="lockBtn" class="primary" type="submit">Odemknout</button>
+    <button id="lockReset" class="ghost" type="button" hidden>Zapomněl jsem heslo</button>
+  </form>
+</div>
 <header class="top">
   <h1>Trasy prádelny</h1>
   <p>D&amp;D laundry, Vidov</p>
@@ -203,6 +225,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
     <button role="tab" data-tab="drivers" aria-selected="false">Řidiči</button>
     <button role="tab" data-tab="customers" aria-selected="false">Zákazníci</button>
   </nav>
+  <button id="lockNow" class="ghost" title="Zamknout aplikaci">Zamknout</button>
 </header>
 
 <section id="tab-cars" class="registry" role="tabpanel" hidden>
@@ -464,7 +487,7 @@ function makeSolver(opts) {
 if (typeof module !== 'undefined') module.exports = { makeSolver };
 
 </script>
-<script>
+<script type="text/plain" id="appScript">
 const COLORS = ['#2440C9','#D99A00','#0F8F73','#C23B87','#6A4BD6','#2C8FD6'];
 const KEY = 'pradelna-trasy-v1';
 const GKEY = 'pradelna-geocache-v1';
@@ -481,7 +504,7 @@ let state = {
 };
 let geocache = {};
 const DEFAULT_SETTINGS = Object.assign({}, state.settings);
-try { const s = localStorage.getItem(KEY); if (s) state = Object.assign(state, JSON.parse(s)); } catch(e){}
+try { const s = window.__BOOT.state; if (s) state = Object.assign(state, s); } catch(e){}
 state.settings = Object.assign({}, DEFAULT_SETTINGS, state.settings);
 state.drivers = state.drivers || [];
 const DEPOT = { address:'D&D laundry, Vidov 40, 370 07 Vidov', query:'Vidov 40, 370 07 Vidov' };
@@ -494,9 +517,9 @@ Object.defineProperty(state, 'stops', { configurable:true, enumerable:false,
   get(){ return state.customers.filter(c => c.car && state.vehicles.some(v => v.id === c.car)); },
   set(v){ if (!v || !v.length) state.customers.forEach(c => { c.car = ''; }); } });
 const openPicks = new Set(); const pickFilter = {};
-try { geocache = JSON.parse(localStorage.getItem(GKEY) || '{}'); } catch(e){}
-function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
-function saveCache(){ try { localStorage.setItem(GKEY, JSON.stringify(geocache)); } catch(e){} }
+geocache = window.__BOOT.geo || {};
+function save(){ window.__persist(() => ({ state, geo: geocache })); }
+function saveCache(){ save(); }
 let uid = Date.now();
 
 // ---------- čas ----------
@@ -1078,6 +1101,106 @@ function renderResults(){
 
 // ---------- start ----------
 bindSettings(); renderDrivers(); renderVehicles(); renderCustomers(); drawMarkers(true); renderResults(); drawRoutes();
+</script>
+<script>
+(() => {
+  const SKEY = 'pradelna-secure-v1', OLD = 'pradelna-trasy-v1', OLDGEO = 'pradelna-geocache-v1';
+  const ITER = 310000, IDLE_MIN = 30;
+  const $ = id => document.getElementById(id);
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  let key = null, salt = null, timer = null, pending = null, idle = null;
+  document.body.classList.add('locked');
+
+  async function derive(pw, saltBytes){
+    const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name:'PBKDF2', salt:saltBytes, iterations:ITER, hash:'SHA-256' }, base,
+      { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+  }
+  async function writeNow(obj){
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj)));
+    localStorage.setItem(SKEY, JSON.stringify({ v:1, salt:b64(salt), iv:b64(iv), data:b64(ct) }));
+  }
+  window.__persist = (getter) => {
+    if (!key) return;
+    pending = getter; clearTimeout(timer);
+    timer = setTimeout(flush, 250);
+  };
+  async function flush(){
+    clearTimeout(timer);
+    if (!pending || !key) return;
+    const g = pending; pending = null;
+    try { await writeNow(g()); } catch(e){ console.error(e); }
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+
+  async function lock(){ await flush(); key = null; location.reload(); }
+  function bumpIdle(){ clearTimeout(idle); idle = setTimeout(lock, IDLE_MIN * 60000); }
+
+  function startApp(boot){
+    window.__BOOT = boot;
+    const code = $('appScript').textContent;
+    const sc = document.createElement('script'); sc.textContent = code; document.body.appendChild(sc);
+    document.body.classList.remove('locked'); $('lock').remove();
+    $('lockNow').onclick = lock;
+    ['click','keydown','pointermove','touchstart'].forEach(ev => document.addEventListener(ev, bumpIdle, { passive:true }));
+    bumpIdle();
+  }
+
+  let stored = null;
+  try { stored = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch(e){}
+  const setup = !stored;
+  const msg = t => { $('lockMsg').textContent = t; };
+  if (setup){
+    $('lockIntro').textContent = 'První spuštění: zvolte heslo, kterým se budou chránit uložená data. Bez něj se k nim nikdo nedostane, ani vy. Heslo si proto někam bezpečně poznamenejte.';
+    $('pw2wrap').hidden = false; $('pw1').autocomplete = 'new-password';
+    $('lockBtn').textContent = 'Nastavit heslo a otevřít';
+  } else {
+    $('lockIntro').textContent = 'Zadejte heslo pro otevření aplikace.';
+    $('lockReset').hidden = false;
+  }
+  setTimeout(() => $('pw1').focus(), 0);
+
+  $('lockForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const pw = $('pw1').value;
+    if (!window.crypto || !crypto.subtle) return msg('Tento prohlížeč neumí šifrování. Otevřete aplikaci přes https v aktuálním Chromu, Edge, Firefoxu nebo Safari.');
+    $('lockBtn').disabled = true; msg('');
+    try {
+      if (setup){
+        if (pw.length < 6) { msg('Heslo musí mít aspoň 6 znaků.'); return; }
+        if (pw !== $('pw2').value) { msg('Hesla se neshodují.'); return; }
+        salt = crypto.getRandomValues(new Uint8Array(16));
+        key = await derive(pw, salt);
+        // převzetí dat ze starší, nešifrované verze
+        let state = null, geo = {};
+        try { state = JSON.parse(localStorage.getItem(OLD) || 'null'); } catch(_){}
+        try { geo = JSON.parse(localStorage.getItem(OLDGEO) || '{}'); } catch(_){}
+        await writeNow({ state, geo });
+        localStorage.removeItem(OLD); localStorage.removeItem(OLDGEO);
+        startApp({ state, geo });
+      } else {
+        msg('Ověřuji…');
+        salt = unb64(stored.salt);
+        const k = await derive(pw, salt);
+        let plain;
+        try { plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv:unb64(stored.iv) }, k, unb64(stored.data)); }
+        catch(_){ msg('Nesprávné heslo.'); $('pw1').select(); return; }
+        key = k;
+        const obj = JSON.parse(dec.decode(plain));
+        startApp({ state: obj.state, geo: obj.geo || {} });
+      }
+    } finally { const b = $('lockBtn'); if (b) b.disabled = false; }
+  });
+
+  $('lockReset').addEventListener('click', () => {
+    if (!confirm('Bez hesla nejde uložená data obnovit. Chcete je smazat a začít znovu s novým heslem?')) return;
+    if (!confirm('Opravdu smazat všechny zákazníky, auta a řidiče uložené v tomto prohlížeči?')) return;
+    localStorage.removeItem(SKEY); location.reload();
+  });
+})();
 </script>
 </body>
 </html>
