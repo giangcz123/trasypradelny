@@ -132,6 +132,26 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 .lic.slots label{justify-content:flex-start; gap:.35rem; padding:.35rem .45rem; font-size:.82rem; white-space:nowrap}
 .days label:not(.every) input{position:absolute; opacity:0; pointer-events:none}
 .days label:has(input:focus-visible){outline:2px solid var(--blue); outline-offset:1px}
+.registry.wide-reg{max-width:1440px}
+.crows{display:grid; gap:.4rem}
+.crow-head, .card.crow{display:grid; grid-template-columns:minmax(150px,1fr) minmax(200px,1.4fr) 390px 300px 74px; gap:.6rem; align-items:center}
+.crow-head{padding:0 .8rem; font-size:.78rem; color:var(--muted)}
+.card.crow{padding:.5rem .8rem; border-left-width:1px; border-radius:8px}
+.card.crow .card-foot{margin:.2rem 0 0; font-size:.75rem}
+.card.crow .card-foot .note{font-size:.75rem}
+.c-days.lic.days{grid-template-columns:auto repeat(7, 1fr)}
+.c-days.lic.days .every{grid-column:auto; padding:.35rem .5rem}
+.c-del{justify-self:end}
+@media (max-width: 1240px){
+  .crow-head{display:none}
+  .card.crow{grid-template-columns:1fr 1.4fr; grid-template-areas:"name addr" "days days" "slots del"}
+  .c-name{grid-area:name} .c-addr{grid-area:addr} .c-days{grid-area:days} .c-slots{grid-area:slots} .c-del{grid-area:del}
+}
+@media (max-width: 640px){
+  .card.crow{grid-template-columns:1fr auto; grid-template-areas:"name del" "addr addr" "days days" "slots slots"}
+  .c-days.lic.days{grid-template-columns:repeat(7, 1fr)}
+  .c-days.lic.days .every{grid-column:1 / -1}
+}
 .pick-item .today{color:var(--blue); font-weight:600}
 .pick-sep{margin:.5rem 0 .1rem; font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
 .card-foot{display:flex; justify-content:space-between; align-items:center; margin-top:.7rem; gap:.5rem; flex-wrap:wrap}
@@ -272,11 +292,11 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
   <div class="row-actions"><button id="addDriver">Přidat řidiče</button></div>
 </section>
 
-<section id="tab-customers" class="registry" role="tabpanel" hidden>
+<section id="tab-customers" class="registry wide-reg" role="tabpanel" hidden>
   <h2>Zákazníci</h2>
   <p class="lead">Stálý adresář hotelů. Zaškrtněte dny, kdy se k hotelu jezdí, a ve kterém závozu. V Plánování se pak hotely na ten den nabízejí u aut nahoře.</p>
   <div class="row-actions" style="margin:0 0 1rem"><input id="custFilter" placeholder="Hledat zákazníka…" style="max-width:320px"></div>
-  <div id="custCards" class="cards cards-sm"></div>
+  <div id="custCards" class="crows"></div>
   <div class="row-actions">
     <button id="addCustomer">Přidat zákazníka</button>
     <button id="toggleImport">Vložit seznam</button>
@@ -848,20 +868,18 @@ const goesOn = (c, day) => !!day && (c.days || []).includes(day);
 function renderCustomers(){
   const q = ($('custFilter').value || '').toLowerCase().trim();
   const list = state.customers.map((c,i) => [c,i]).filter(([c]) => !q || (c.name + ' ' + c.address).toLowerCase().includes(q));
-  $('custCards').innerHTML = state.customers.length ? (list.length ? list.map(([c,i]) => `
-    <article class="card compact" data-ci="${i}">
-      <div class="grid2">
-        <div class="wide"><label>Název hotelu</label><input data-k="name" value="${esc(c.name)}" placeholder="např. Hotel Lípa"></div>
-        <div class="wide"><label>Adresa</label><input data-k="address" value="${esc(c.address)}" placeholder="Ulice č. p., PSČ Město"></div>
-        <div class="wide"><label>Kdy se jezdí</label><div class="lic days">
-          <label class="every"><input type="checkbox" data-day="all" ${(c.days||[]).length === 7 ? 'checked' : ''}>Každý den</label>
-          ${DAYS.map(([k,l]) => `<label><input type="checkbox" data-day="${k}" ${(c.days||[]).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
-        </div></div>
-        <div class="wide"><label>Závoz</label><div class="lic slots">
-          ${SLOTS.map(([k,l]) => `<label><input type="radio" name="slot-${esc(c.id)}" data-slot="${k}" ${slotOf(c) === k ? 'checked' : ''}>${l}</label>`).join('')}
-        </div></div>
+  $('custCards').innerHTML = state.customers.length ? (list.length ? `<div class="crow-head" aria-hidden="true"><span>Název hotelu</span><span>Adresa</span><span>Kdy se jezdí</span><span>Závoz</span><span></span></div>` + list.map(([c,i]) => `
+    <article class="card crow" data-ci="${i}">
+      <div class="c-name"><input data-k="name" value="${esc(c.name)}" placeholder="Název hotelu" aria-label="Název hotelu"></div>
+      <div class="c-addr"><input data-k="address" value="${esc(c.address)}" placeholder="Ulice č. p., PSČ Město" aria-label="Adresa"><div class="card-foot">${custGeo(c)}</div></div>
+      <div class="lic days c-days" role="group" aria-label="Kdy se jezdí">
+        <label class="every"><input type="checkbox" data-day="all" ${(c.days||[]).length === 7 ? 'checked' : ''}>Každý den</label>
+        ${DAYS.map(([k,l]) => `<label><input type="checkbox" data-day="${k}" ${(c.days||[]).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
       </div>
-      <div class="card-foot">${custGeo(c)}<button class="ghost" data-del>Odebrat</button></div>
+      <div class="lic slots c-slots" role="radiogroup" aria-label="Závoz">
+        ${SLOTS.map(([k,l]) => `<label><input type="radio" name="slot-${esc(c.id)}" data-slot="${k}" ${slotOf(c) === k ? 'checked' : ''}>${l}</label>`).join('')}
+      </div>
+      <button class="ghost c-del" data-del aria-label="Odebrat ${esc(c.name || 'zákazníka')}">Odebrat</button>
     </article>`).join('') : '<p class="empty">Nikdo neodpovídá hledání.</p>')
     : '<p class="empty">Zatím žádní zákazníci. Přidejte je jednotlivě, nebo vložte celý seznam.</p>';
 }
