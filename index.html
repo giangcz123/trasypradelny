@@ -243,7 +243,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:05</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:10</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -268,7 +268,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:05</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:10</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -303,8 +303,8 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
     <button id="toggleImport">Vložit seznam</button>
   </div>
   <div id="importBox" hidden style="margin-top:.8rem; max-width:720px">
-    <label for="importText">Jeden zákazník na řádek: název; adresa; obvyklý počet klecí; časové okno; typ (V = vyzvednutí, R = rozvoz). Lze vložit i přímo z Excelu.</label>
-    <textarea id="importText" placeholder="Hotel Lípa; Korunní 40, České Budějovice; 6; 5:00-7:00; V&#10;Hotel Bazilika; Biskupská 130, České Budějovice; 3; ; R"></textarea>
+    <label for="importText">Jeden zákazník na řádek: název; adresa. Můžete vložit i buňky zkopírované přímo z Excelu (název, ulice, PSČ, město). Volitelně lze přidat dny (např. „každý den“ nebo „po, st, pá“) a závoz („3:00“, „8:00“, „2. závoz“).</label>
+    <textarea id="importText" placeholder="ATLAS; Kostelní 1223, 370 04 České Budějovice&#10;RŮŽE; Horní 154, 381 01 Český Krumlov; každý den; 2. závoz"></textarea>
     <div class="row-actions"><button id="doImport">Přidat zákazníky</button></div>
   </div>
 </section>
@@ -962,21 +962,46 @@ $('addCustomer').onclick = () => {
   const cards = document.querySelectorAll('#custCards .card'); cards[cards.length-1]?.querySelector('input')?.focus();
 };
 $('toggleImport').onclick = () => { $('importBox').hidden = !$('importBox').hidden; };
+function parseImportLine(line){
+  let f = (line.includes('\t') ? line.split('\t') : line.split(';')).map(x => x.replace(/ /g,' ').replace(/\s+/g,' ').trim());
+  while (f.length && !f[f.length-1]) f.pop();
+  if (!f.length) return null;
+  if (f.length === 1) return /[\t;]/.test(line) ? { name:f[0], address:'', rest:[] } : { name:'', address:f[0], rest:[] };
+  // Excel: název | ulice | PSČ | město
+  if (f.length >= 4 && /^\d{3}\s?\d{2}$/.test(f[2])) return { name:f[0], address:`${f[1]}, ${f[2]} ${f[3]}`.trim(), rest:f.slice(4) };
+  return { name:f[0], address:f[1], rest:f.slice(2) };
+}
+function parseDays(t){
+  const x = t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if (/kazdy|denne|vse|po-ne/.test(x)) return DAYS.map(([k]) => k);
+  const map = { po:'po', ut:'ut', st:'st', ct:'ct', pa:'pa', so:'so', ne:'ne' };
+  const found = (x.match(/\b(po|ut|st|ct|pa|so|ne)\b/g) || []).map(d => map[d]);
+  return found.length ? DAYS.map(([k]) => k).filter(k => found.includes(k)) : null;
+}
+function parseSlot(t){
+  const x = t.toLowerCase().replace(/\s/g,'');
+  if (/^2\.?(zavoz|závoz)?$|druh/.test(x)) return 'z2';
+  if (/^3|^4|3:00|4:00/.test(x)) return 'e';
+  if (/^8/.test(x)) return '8';
+  return null;
+}
 $('doImport').onclick = () => {
-  const lines = $('importText').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  let added = 0, dup = 0;
+  const lines = $('importText').value.split(/\r?\n/).filter(l => l.trim());
+  let added = 0, dup = 0, noAddr = [];
   for (const line of lines){
-    const f = (line.includes('\t') ? line.split('\t') : line.split(';')).map(x => x.trim());
-    const [name, address, qty, win, kind] = f.length === 1 ? ['', f[0]] : f;
-    if (!address) continue;
-    if (state.customers.some(c => c.address.trim().toLowerCase() === address.toLowerCase() && (c.name||'').trim().toLowerCase() === (name||'').toLowerCase())) { dup++; continue; }
-    state.customers.push({ id:'c'+(uid++), name: name||'', address, demand: qty ? (parseFloat(qty.replace(',','.'))||0) : 1,
-      window: win||'', kind: /^r/i.test(kind||'') ? 'R' : 'V', note:'', car:'', lat:null, lng:null, label:'' });
+    const p = parseImportLine(line); if (!p) continue;
+    if (/n[aá]zev|ulice/i.test(p.name) && /ulice|adresa/i.test(line)) continue; // záhlaví tabulky
+    if (!p.address || !/\d/.test(p.address) && p.address.length < 4) { if (p.name) noAddr.push(p.name); continue; }
+    let days = [], slot = '';
+    for (const r of p.rest){ const sl = parseSlot(r), ds = parseDays(r); if (ds) days = ds; else if (sl) slot = sl; }
+    const same = c => c.address.trim().toLowerCase() === p.address.toLowerCase() && (c.name||'').trim().toLowerCase() === (p.name||'').toLowerCase();
+    if (state.customers.some(same)) { dup++; continue; }
+    state.customers.push({ id:'c'+(uid++), name:p.name, address:p.address, demand:1, window:'', kind:'V', note:'', days, slot, car:'', lat:null, lng:null, label:'' });
     added++;
   }
   $('importText').value = ''; $('importBox').hidden = true;
   save(); renderCustomers(); renderVehicles(false);
-  toast(`Přidáno ${added} zákazníků.` + (dup ? ` ${dup} už v adresáři bylo, ty jsem přeskočil.` : ''));
+  toast(`Přidáno ${added} zákazníků.` + (dup ? ` ${dup} už v adresáři bylo, ty jsem přeskočil.` : '') + (noAddr.length ? ` Bez adresy (nepřidáno): ${noAddr.join(', ')}.` : ''));
 };
 
 function setStatus(msg, err){ const el = $('status'); el.textContent = msg; el.className = err ? 'err' : ''; }
