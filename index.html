@@ -243,7 +243,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:10</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:20</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -268,7 +268,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:10</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:20</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -637,15 +637,16 @@ function pickerHtml(v){
     return `<label class="pick-item ${other ? 'other' : ''}" data-s="${esc((c.name + ' ' + c.address).toLowerCase())}">
       <input type="checkbox" data-pick="${c.id}" data-v="${v.id}" ${c.car === v.id ? 'checked' : ''}>
       <span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : esc(slotText(c))}</small></label>`; };
-  const allowed = MODE_SLOTS[planMode()];
-  const sameDay = planMode() === 'same';
+  const vSlot = carSlot(v);
+  const allowed = [vSlot];
+  const sameDay = vSlot === 'z2'; // 2. závoz: jen zákazníci se zaškrtnutým dnem
   // 2. závoz: jen zákazníci se zaškrtnutým konkrétním dnem
   const shown = state.customers.filter(c => c.car === v.id || (allowed.includes(slotOf(c)) && (!sameDay || goesOn(c, day))));
   const hidden = state.customers.length - shown.length;
   const todays = shown.filter(c => goesOn(c, day)), rest = shown.filter(c => !goesOn(c, day));
   const hiddenNote = hidden ? `<p class="note" style="margin:.4rem 0 0">${(() => { const why = sameDay ? 's jiným závozem nebo bez jízdy v tento den' : 's jiným nebo nevyplněným závozem'; return hidden === 1 ? '1 zákazník ' + why + ' je skrytý' : hidden <= 4 ? hidden + ' zákazníci ' + why + ' jsou skrytí' : hidden + ' zákazníků ' + why + ' je skrytých'; })()}.</p>` : '';
   const list = !state.customers.length ? '<p class="note" style="margin:0">Zatím žádní zákazníci. Přidejte je v záložce Zákazníci.</p>'
-    : !shown.length ? `<p class="note" style="margin:0">${planMode() === 'next' ? 'Žádný zákazník nemá závoz 3:00 – 4:00 ani 8:00.' : 'Žádný zákazník nemá 2. závoz s jízdou ' + esc(dayLabel(state.settings.date).toLowerCase()) + '.'} Nastavte to v záložce Zákazníci.</p>${hiddenNote}`
+    : !shown.length ? `<p class="note" style="margin:0">${vSlot === 'z2' ? 'Žádný zákazník nemá 2. závoz s jízdou ' + esc(dayLabel(state.settings.date).toLowerCase()) + '.' : 'Žádný zákazník nemá závoz ' + (vSlot === 'e' ? '3:00 – 4:00' : '8:00') + '.'} Nastavte to v záložce Zákazníci.</p>${hiddenNote}`
     : (todays.length
       ? `<p class="pick-sep">Jezdí ${esc(dayLabel(state.settings.date).toLowerCase())}</p>${todays.map(item).join('')}${rest.length ? `<p class="pick-sep">Ostatní</p>${rest.map(item).join('')}` : ''}`
       : shown.map(item).join('')) + hiddenNote;
@@ -704,11 +705,18 @@ function refreshDay(){
 }
 setInterval(refreshDay, 60000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshDay(); });
+// který závoz zákazníků odpovídá výjezdu auta
+function carSlot(v){
+  const ch = startChoice(v);
+  if (ch === 'z2') return 'z2';
+  const m = parseTime(ch);
+  return m != null && !isNaN(m) && m < 6 * 60 ? 'e' : '8';
+}
 function renderModeHint(){
   const el = $('modeHint'); if (!el) return;
   const d = dayLabel(state.settings.date).toLowerCase();
   el.innerHTML = planMode() === 'next'
-    ? `Zadáváte závozy na <strong>další den, ${esc(d)}</strong> Nabízejí se zákazníci se závozem 3:00 – 4:00 a 8:00.`
+    ? `Zadáváte závozy na <strong>další den, ${esc(d)}</strong> U auta s výjezdem 3:00 – 4:00 se nabízejí jen hotely se závozem 3:00 – 4:00, s výjezdem 7:00 – 8:00 jen hotely s 8:00.`
     : `Zadáváte doručení <strong>na dnešek, ${esc(d)}</strong> Nabízejí se jen zákazníci s 2. závozem, kteří mají zaškrtnutý tento den.`;
 }
 function renderVehicles(withCards = true){
@@ -745,7 +753,9 @@ $('vehicles').addEventListener('input', e => {
   if (e.target.classList.contains('pick-filter')) { pickFilter[e.target.dataset.v] = e.target.value; applyPickFilters(); return; }
   const i = e.target.dataset.i, k = e.target.dataset.k; if (i == null) return;
   state.vehicles[i][k] = e.target.value;
-  if (k === 'driver') { save(); renderVehicles(); if (!state.stale) renderResults(); } else markStale();
+  if (k === 'driver') { save(); renderVehicles(); if (!state.stale) renderResults(); }
+  else if (k === 'start') { markStale(); renderVehicles(false); }
+  else markStale();
 });
 function renderCarCards(){
   $('carCards').innerHTML = state.vehicles.length ? state.vehicles.map((v,i) => `
