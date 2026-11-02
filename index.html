@@ -33,7 +33,11 @@ body.locked > :not(#lock):not(script){display:none !important}
 .lock-text{margin:0 0 .3rem; color:var(--muted); font-size:.9rem}
 .lock-msg{min-height:1.2em; margin:0; color:var(--err); font-size:.9rem}
 .lock-card button.primary{padding:.65rem}
-#lockNow{margin-left:.5rem}
+#lockNow{margin-left:.25rem}
+.sync-bar{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:900; background:var(--ink); color:var(--bg);
+  padding:.6rem .9rem; border-radius:8px; display:flex; gap:.75rem; align-items:center; max-width:calc(100% - 32px); box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.sync-bar button{background:var(--surface); color:var(--ink); border:0}
+#loginFields label, #importFields label{display:block}
 html,body{margin:0}
 body{
   background:var(--bg); color:var(--ink);
@@ -204,18 +208,26 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 </head>
 <body>
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
-  <form id="lockForm" class="lock-card" autocomplete="off">
+  <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
     <p class="lock-sub">D&amp;D laundry, Vidov</p>
-    <p id="lockIntro" class="lock-text"></p>
-    <label for="pw1">Heslo</label>
-    <input id="pw1" type="password" autocomplete="current-password" required>
-    <div id="pw2wrap" hidden><label for="pw2">Heslo znovu</label><input id="pw2" type="password" autocomplete="new-password"></div>
+    <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
+    <div id="loginFields">
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="pw1" style="margin-top:.5rem">Heslo</label>
+      <input id="pw1" type="password" autocomplete="current-password" required>
+    </div>
+    <div id="importFields" hidden>
+      <label for="oldpw">Heslo z dřívější verze aplikace</label>
+      <input id="oldpw" type="password" autocomplete="off">
+    </div>
     <p id="lockMsg" class="lock-msg" role="alert"></p>
-    <button id="lockBtn" class="primary" type="submit">Odemknout</button>
-    <button id="lockReset" class="ghost" type="button" hidden>Zapomněl jsem heslo</button>
+    <button id="lockBtn" class="primary" type="submit">Přihlásit</button>
+    <button id="skipImport" class="ghost" type="button" hidden>Přeskočit, začít s prázdnými daty</button>
   </form>
 </div>
+<div id="syncBar" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
   <p>D&amp;D laundry, Vidov</p>
@@ -225,7 +237,8 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
     <button role="tab" data-tab="drivers" aria-selected="false">Řidiči</button>
     <button role="tab" data-tab="customers" aria-selected="false">Zákazníci</button>
   </nav>
-  <button id="lockNow" class="ghost" title="Zamknout aplikaci">Zamknout</button>
+  <span id="whoami" class="note" style="margin-left:.75rem"></span>
+  <button id="lockNow" class="ghost" title="Odhlásit se">Odhlásit</button>
 </header>
 
 <section id="tab-cars" class="registry" role="tabpanel" hidden>
@@ -298,6 +311,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // Solver: více aut, kapacita, časová okna, start a návrat do depa (uzel 0).
 // dur[i][j] = minuty jízdy. stops[i-1] = {demand, from, to} (minuty od půlnoci), service = min na zastávku.
@@ -1104,102 +1118,145 @@ bindSettings(); renderDrivers(); renderVehicles(); renderCustomers(); drawMarker
 </script>
 <script>
 (() => {
+  // ---- Nastavení Supabase ----
+  const SUPABASE_URL = 'https://srzgttvkaenisqnpxzuw.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_sLzlTYwp6qs-fCaaeMLIhQ_NZpULi24';
+  const ROW = 'main';
+  // starší, místně šifrovaná data (verze před přihlašováním)
   const SKEY = 'pradelna-secure-v1', OLD = 'pradelna-trasy-v1', OLDGEO = 'pradelna-geocache-v1';
-  const ITER = 310000, IDLE_MIN = 30;
+
   const $ = id => document.getElementById(id);
-  const enc = new TextEncoder(), dec = new TextDecoder();
-  const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
-  const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-  let key = null, salt = null, timer = null, pending = null, idle = null;
+  const msg = t => { $('lockMsg').textContent = t; };
   document.body.classList.add('locked');
 
-  async function derive(pw, saltBytes){
-    const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
-    return crypto.subtle.deriveKey({ name:'PBKDF2', salt:saltBytes, iterations:ITER, hash:'SHA-256' }, base,
-      { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+  if (!window.supabase || !SUPABASE_URL.startsWith('https://')) {
+    msg('Aplikaci se nepodařilo spojit s databází. Zkontrolujte připojení k internetu a obnovte stránku.');
+    $('lockBtn').disabled = true; return;
   }
-  async function writeNow(obj){
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj)));
-    localStorage.setItem(SKEY, JSON.stringify({ v:1, salt:b64(salt), iv:b64(iv), data:b64(ct) }));
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession:true, autoRefreshToken:true } });
+  let version = 0, user = null, timer = null, pending = null, saving = false, conflict = false, mySaves = new Set();
+
+  function bar(text, actionLabel, action){
+    const b = $('syncBar'); b.innerHTML = ''; b.hidden = !text; if (!text) return;
+    const sp = document.createElement('span'); sp.textContent = text; b.appendChild(sp);
+    if (actionLabel){ const btn = document.createElement('button'); btn.textContent = actionLabel; btn.onclick = action; b.appendChild(btn); }
   }
+
+  async function load(){
+    const { data, error } = await sb.from('app_state').select('data, version').eq('id', ROW).maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      const ins = await sb.from('app_state').insert({ id: ROW, data: {}, version: 1 }).select('data, version').single();
+      if (ins.error) throw ins.error;
+      return ins.data;
+    }
+    return data;
+  }
+
   window.__persist = (getter) => {
-    if (!key) return;
-    pending = getter; clearTimeout(timer);
-    timer = setTimeout(flush, 250);
+    if (conflict) return;
+    pending = getter; clearTimeout(timer); timer = setTimeout(flush, 600);
   };
   async function flush(){
     clearTimeout(timer);
-    if (!pending || !key) return;
-    const g = pending; pending = null;
-    try { await writeNow(g()); } catch(e){ console.error(e); }
+    if (!pending || saving || conflict) return;
+    const g = pending; pending = null; saving = true;
+    try {
+      const next = version + 1; mySaves.add(next);
+      const { data, error } = await sb.from('app_state')
+        .update({ data: g(), version: next, updated_at: new Date().toISOString(), updated_by: user.id })
+        .eq('id', ROW).eq('version', version).select('version');
+      if (error) { mySaves.delete(next); pending = pending || g; bar('Změny se nepodařilo uložit, zkouším znovu…'); setTimeout(flush, 5000); }
+      else if (!data || !data.length) { mySaves.delete(next); conflict = true;
+        bar('Mezitím data upravil někdo jiný. Poslední změna se neuložila.', 'Načíst aktuální data', () => location.reload()); }
+      else { version = data[0].version; if (!$('syncBar').hidden && !conflict) bar(''); }
+    } catch(e){ pending = pending || g; bar('Bez připojení. Změny se uloží, až bude internet.'); setTimeout(flush, 5000); }
+    finally { saving = false; if (pending && !conflict) timer = setTimeout(flush, 600); }
   }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+  window.addEventListener('beforeunload', e => { if (pending || saving) { flush(); e.preventDefault(); e.returnValue = ''; } });
 
-  async function lock(){ await flush(); key = null; location.reload(); }
-  function bumpIdle(){ clearTimeout(idle); idle = setTimeout(lock, IDLE_MIN * 60000); }
+  function listen(){
+    sb.channel('app_state_changes')
+      .on('postgres_changes', { event:'UPDATE', schema:'public', table:'app_state', filter:'id=eq.' + ROW }, p => {
+        const v = p.new && p.new.version;
+        if (!v || v <= version || mySaves.has(v)) return;
+        bar('Data upravil někdo jiný.', 'Načíst', () => location.reload());
+      }).subscribe();
+  }
 
-  function startApp(boot){
-    window.__BOOT = boot;
-    const code = $('appScript').textContent;
-    const sc = document.createElement('script'); sc.textContent = code; document.body.appendChild(sc);
+  function startApp(row){
+    version = row.version || 1;
+    const d = row.data || {};
+    window.__BOOT = { state: d.state || null, geo: d.geo || {} };
+    const sc = document.createElement('script'); sc.textContent = $('appScript').textContent; document.body.appendChild(sc);
     document.body.classList.remove('locked'); $('lock').remove();
-    $('lockNow').onclick = lock;
-    ['click','keydown','pointermove','touchstart'].forEach(ev => document.addEventListener(ev, bumpIdle, { passive:true }));
-    bumpIdle();
+    $('whoami').textContent = user.email || '';
+    $('lockNow').onclick = async () => { await flush(); await sb.auth.signOut(); location.reload(); };
+    listen();
   }
 
-  let stored = null;
-  try { stored = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch(e){}
-  const setup = !stored;
-  const msg = t => { $('lockMsg').textContent = t; };
-  if (setup){
-    $('lockIntro').textContent = 'První spuštění: zvolte heslo, kterým se budou chránit uložená data. Bez něj se k nim nikdo nedostane, ani vy. Heslo si proto někam bezpečně poznamenejte.';
-    $('pw2wrap').hidden = false; $('pw1').autocomplete = 'new-password';
-    $('lockBtn').textContent = 'Nastavit heslo a otevřít';
-  } else {
-    $('lockIntro').textContent = 'Zadejte heslo pro otevření aplikace.';
-    $('lockReset').hidden = false;
+  // převzetí dřívějších dat z tohoto počítače (jen když je databáze prázdná)
+  async function legacy(){
+    let plain = null; try { plain = JSON.parse(localStorage.getItem(OLD) || 'null'); } catch(_){}
+    if (plain) return { kind:'plain', state: plain, geo: (()=>{ try { return JSON.parse(localStorage.getItem(OLDGEO)||'{}'); } catch(_){ return {}; } })() };
+    let sec = null; try { sec = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch(_){}
+    return sec ? { kind:'enc', sec } : null;
   }
-  setTimeout(() => $('pw1').focus(), 0);
+  async function decryptOld(sec, pw){
+    const enc = new TextEncoder(), unb = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+    const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({ name:'PBKDF2', salt:unb(sec.salt), iterations:310000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:unb(sec.iv) }, key, unb(sec.data));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+  async function saveImported(row, obj){
+    const next = row.version + 1;
+    const { data, error } = await sb.from('app_state').update({ data: obj, version: next, updated_at: new Date().toISOString(), updated_by: user.id })
+      .eq('id', ROW).eq('version', row.version).select('data, version');
+    if (error || !data || !data.length) throw error || new Error('conflict');
+    localStorage.removeItem(OLD); localStorage.removeItem(OLDGEO); localStorage.removeItem(SKEY);
+    return data[0];
+  }
 
+  let stage = 'login', row = null, old = null;
+  async function afterLogin(){
+    msg('Načítám data…');
+    row = await load();
+    const empty = !row.data || !row.data.state;
+    old = empty ? await legacy() : null;
+    if (old && old.kind === 'plain') { msg('Přebírám data z tohoto počítače…'); row = await saveImported(row, { state: old.state, geo: old.geo }); }
+    else if (old && old.kind === 'enc') {
+      stage = 'import';
+      $('loginFields').hidden = true; $('importFields').hidden = false; $('skipImport').hidden = false;
+      $('lockIntro').textContent = 'Databáze je zatím prázdná, ale na tomto počítači jsou data z dřívější verze. Zadejte heslo, které jste tehdy používali, a data se nahrají na server.';
+      $('lockBtn').textContent = 'Převzít data'; msg(''); $('oldpw').focus(); return;
+    }
+    startApp(row);
+  }
+
+  $('skipImport').onclick = () => startApp(row);
   $('lockForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const pw = $('pw1').value;
-    if (!window.crypto || !crypto.subtle) return msg('Tento prohlížeč neumí šifrování. Otevřete aplikaci přes https v aktuálním Chromu, Edge, Firefoxu nebo Safari.');
-    $('lockBtn').disabled = true; msg('');
+    e.preventDefault(); $('lockBtn').disabled = true;
     try {
-      if (setup){
-        if (pw.length < 6) { msg('Heslo musí mít aspoň 6 znaků.'); return; }
-        if (pw !== $('pw2').value) { msg('Hesla se neshodují.'); return; }
-        salt = crypto.getRandomValues(new Uint8Array(16));
-        key = await derive(pw, salt);
-        // převzetí dat ze starší, nešifrované verze
-        let state = null, geo = {};
-        try { state = JSON.parse(localStorage.getItem(OLD) || 'null'); } catch(_){}
-        try { geo = JSON.parse(localStorage.getItem(OLDGEO) || '{}'); } catch(_){}
-        await writeNow({ state, geo });
-        localStorage.removeItem(OLD); localStorage.removeItem(OLDGEO);
-        startApp({ state, geo });
+      if (stage === 'login') {
+        msg('Přihlašuji…');
+        const { data, error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw1').value });
+        if (error) { msg(/invalid/i.test(error.message) ? 'Nesprávný e-mail nebo heslo.' : 'Přihlášení se nepovedlo: ' + error.message); return; }
+        user = data.user; await afterLogin();
       } else {
-        msg('Ověřuji…');
-        salt = unb64(stored.salt);
-        const k = await derive(pw, salt);
-        let plain;
-        try { plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv:unb64(stored.iv) }, k, unb64(stored.data)); }
-        catch(_){ msg('Nesprávné heslo.'); $('pw1').select(); return; }
-        key = k;
-        const obj = JSON.parse(dec.decode(plain));
-        startApp({ state: obj.state, geo: obj.geo || {} });
+        let obj; try { obj = await decryptOld(old.sec, $('oldpw').value); } catch(_){ msg('Nesprávné heslo.'); return; }
+        msg('Nahrávám data na server…'); row = await saveImported(row, { state: obj.state, geo: obj.geo || {} }); startApp(row);
       }
-    } finally { const b = $('lockBtn'); if (b) b.disabled = false; }
+    } catch(err){ console.error(err); msg('Spojení s databází selhalo. Zkontrolujte internet a zkuste to znovu.'); }
+    finally { const b = $('lockBtn'); if (b) b.disabled = false; }
   });
 
-  $('lockReset').addEventListener('click', () => {
-    if (!confirm('Bez hesla nejde uložená data obnovit. Chcete je smazat a začít znovu s novým heslem?')) return;
-    if (!confirm('Opravdu smazat všechny zákazníky, auta a řidiče uložené v tomto prohlížeči?')) return;
-    localStorage.removeItem(SKEY); location.reload();
-  });
+  (async () => {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session) { user = data.session.user; try { await afterLogin(); } catch(e){ console.error(e); msg('Spojení s databází selhalo. Obnovte stránku.'); } }
+    else setTimeout(() => $('email').focus(), 0);
+  })();
 })();
 </script>
 </body>
