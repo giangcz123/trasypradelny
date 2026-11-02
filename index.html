@@ -248,7 +248,7 @@ button.danger:hover{border-color:var(--err)}
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:45</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:50</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -273,7 +273,7 @@ button.danger:hover{border-color:var(--err)}
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:45</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:50</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -324,7 +324,7 @@ button.danger:hover{border-color:var(--err)}
         <div><label for="dDate">Den jízdy</label><input id="dDate" type="date"></div>
         <div><label for="tStart">Výjezd</label><input id="tStart" value="04:00"></div>
         <div><label for="tEnd">Návrat nejpozději</label><input id="tEnd" value="17:00"></div>
-        <div><label for="service">Minut na zastávku</label><input id="service" type="number" min="0" value="5"></div>
+        <div><label for="service">Minut na zastávku</label><input id="service" type="number" min="0" value="30"></div>
         <div><label for="reload">Vyložení a naložení v prádelně (min)</label><input id="reload" type="number" min="0" value="20"></div>
         <p class="note wide" style="margin:0">Náklad se počítá v klecích. Den jízdy se předvyplní: od 15:00 zítřek, jinak dnešek.</p>
       </div>
@@ -557,7 +557,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 
 let state = {
   depot: { address:'', lat:null, lng:null },
-  settings: { start:'04:00', end:'17:00', service:5, reload:20, date:'' },
+  settings: { start:'04:00', end:'17:00', service:30, reload:20, date:'' },
   drivers: [],
   vehicles: [ {name:'Auto 1', capacity:30}, {name:'Auto 2', capacity:30} ],
   stops: [],
@@ -567,6 +567,7 @@ let geocache = {};
 const DEFAULT_SETTINGS = Object.assign({}, state.settings);
 try { const s = window.__BOOT.state; if (s) state = Object.assign(state, s); } catch(e){}
 state.settings = Object.assign({}, DEFAULT_SETTINGS, state.settings);
+state.settings.service = 30; // vykládka u každého zákazníka cca 30 min
 state.drivers = state.drivers || [];
 const DEPOT = { address:'D&D laundry, Vidov 40, 370 07 Vidov', query:'Vidov 40, 370 07 Vidov' };
 if (state.depot.address !== DEPOT.address) state.depot = { address:DEPOT.address, query:DEPOT.query, lat:null, lng:null };
