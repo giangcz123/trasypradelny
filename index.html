@@ -37,7 +37,7 @@ body.locked > :not(#lock):not(script){display:none !important}
 .sync-bar{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:900; background:var(--ink); color:var(--bg);
   padding:.6rem .9rem; border-radius:8px; display:flex; gap:.75rem; align-items:center; max-width:calc(100% - 32px); box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .sync-bar button{background:var(--surface); color:var(--ink); border:0}
-#loginFields label, #importFields label{display:block}
+#loginFields label{display:block}
 html,body{margin:0}
 body{
   background:var(--bg); color:var(--ink);
@@ -218,13 +218,8 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
       <label for="pw1" style="margin-top:.5rem">Heslo</label>
       <input id="pw1" type="password" autocomplete="current-password" required>
     </div>
-    <div id="importFields" hidden>
-      <label for="oldpw">Heslo z dřívější verze aplikace</label>
-      <input id="oldpw" type="password" autocomplete="off">
-    </div>
     <p id="lockMsg" class="lock-msg" role="alert"></p>
     <button id="lockBtn" class="primary" type="submit">Přihlásit</button>
-    <button id="skipImport" class="ghost" type="button" hidden>Přeskočit, začít s prázdnými daty</button>
   </form>
 </div>
 <div id="syncBar" class="sync-bar" role="status" hidden></div>
@@ -1122,8 +1117,6 @@ bindSettings(); renderDrivers(); renderVehicles(); renderCustomers(); drawMarker
   const SUPABASE_URL = 'https://srzgttvkaenisqnpxzuw.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_sLzlTYwp6qs-fCaaeMLIhQ_NZpULi24';
   const ROW = 'main';
-  // starší, místně šifrovaná data (verze před přihlašováním)
-  const SKEY = 'pradelna-secure-v1', OLD = 'pradelna-trasy-v1', OLDGEO = 'pradelna-geocache-v1';
 
   const $ = id => document.getElementById(id);
   const msg = t => { $('lockMsg').textContent = t; };
@@ -1196,58 +1189,18 @@ bindSettings(); renderDrivers(); renderVehicles(); renderCustomers(); drawMarker
     listen();
   }
 
-  // převzetí dřívějších dat z tohoto počítače (jen když je databáze prázdná)
-  async function legacy(){
-    let plain = null; try { plain = JSON.parse(localStorage.getItem(OLD) || 'null'); } catch(_){}
-    if (plain) return { kind:'plain', state: plain, geo: (()=>{ try { return JSON.parse(localStorage.getItem(OLDGEO)||'{}'); } catch(_){ return {}; } })() };
-    let sec = null; try { sec = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch(_){}
-    return sec ? { kind:'enc', sec } : null;
-  }
-  async function decryptOld(sec, pw){
-    const enc = new TextEncoder(), unb = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-    const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
-    const key = await crypto.subtle.deriveKey({ name:'PBKDF2', salt:unb(sec.salt), iterations:310000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, false, ['decrypt']);
-    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:unb(sec.iv) }, key, unb(sec.data));
-    return JSON.parse(new TextDecoder().decode(pt));
-  }
-  async function saveImported(row, obj){
-    const next = row.version + 1;
-    const { data, error } = await sb.from('app_state').update({ data: obj, version: next, updated_at: new Date().toISOString(), updated_by: user.id })
-      .eq('id', ROW).eq('version', row.version).select('data, version');
-    if (error || !data || !data.length) throw error || new Error('conflict');
-    localStorage.removeItem(OLD); localStorage.removeItem(OLDGEO); localStorage.removeItem(SKEY);
-    return data[0];
-  }
-
-  let stage = 'login', row = null, old = null;
   async function afterLogin(){
     msg('Načítám data…');
-    row = await load();
-    const empty = !row.data || !row.data.state;
-    old = empty ? await legacy() : null;
-    if (old && old.kind === 'plain') { msg('Přebírám data z tohoto počítače…'); row = await saveImported(row, { state: old.state, geo: old.geo }); }
-    else if (old && old.kind === 'enc') {
-      stage = 'import';
-      $('loginFields').hidden = true; $('importFields').hidden = false; $('skipImport').hidden = false;
-      $('lockIntro').textContent = 'Databáze je zatím prázdná, ale na tomto počítači jsou data z dřívější verze. Zadejte heslo, které jste tehdy používali, a data se nahrají na server.';
-      $('lockBtn').textContent = 'Převzít data'; msg(''); $('oldpw').focus(); return;
-    }
-    startApp(row);
+    startApp(await load());
   }
 
-  $('skipImport').onclick = () => startApp(row);
   $('lockForm').addEventListener('submit', async e => {
     e.preventDefault(); $('lockBtn').disabled = true;
     try {
-      if (stage === 'login') {
-        msg('Přihlašuji…');
-        const { data, error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw1').value });
-        if (error) { msg(/invalid/i.test(error.message) ? 'Nesprávný e-mail nebo heslo.' : 'Přihlášení se nepovedlo: ' + error.message); return; }
-        user = data.user; await afterLogin();
-      } else {
-        let obj; try { obj = await decryptOld(old.sec, $('oldpw').value); } catch(_){ msg('Nesprávné heslo.'); return; }
-        msg('Nahrávám data na server…'); row = await saveImported(row, { state: obj.state, geo: obj.geo || {} }); startApp(row);
-      }
+      msg('Přihlašuji…');
+      const { data, error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw1').value });
+      if (error) { msg(/invalid/i.test(error.message) ? 'Nesprávný e-mail nebo heslo.' : 'Přihlášení se nepovedlo: ' + error.message); return; }
+      user = data.user; await afterLogin();
     } catch(err){ console.error(err); msg('Spojení s databází selhalo. Zkontrolujte internet a zkuste to znovu.'); }
     finally { const b = $('lockBtn'); if (b) b.disabled = false; }
   });
