@@ -214,7 +214,8 @@ button.danger:hover{border-color:var(--err)}
 .ticket h3{font-size:1.35rem; font-weight:800}
 .ticket .meta{display:flex; gap:1rem; flex-wrap:wrap; color:var(--muted); font-size:.85rem; margin:.35rem 0 .7rem}
 .ticket ol{list-style:none; margin:0; padding:0; border-top:1px dashed var(--line)}
-.ticket li{display:grid; grid-template-columns:52px 1fr; gap:.5rem; padding:.45rem 0; border-bottom:1px dashed var(--line)}
+.ticket li .t small{display:block; font-weight:500; color:var(--muted); font-size:.8rem}
+.ticket li{display:grid; grid-template-columns:60px 1fr; gap:.5rem; padding:.45rem 0; border-bottom:1px dashed var(--line)}
 .ticket li .t{font-weight:700; font-variant-numeric:tabular-nums}
 .ticket li .who{font-weight:600}
 .ticket li .sub{color:var(--muted); font-size:.82rem}
@@ -248,7 +249,7 @@ button.danger:hover{border-color:var(--err)}
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:50</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 18:00</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -273,7 +274,7 @@ button.danger:hover{border-color:var(--err)}
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:50</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 18:00</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -324,7 +325,7 @@ button.danger:hover{border-color:var(--err)}
         <div><label for="dDate">Den jízdy</label><input id="dDate" type="date"></div>
         <div><label for="tStart">Výjezd</label><input id="tStart" value="04:00"></div>
         <div><label for="tEnd">Návrat nejpozději</label><input id="tEnd" value="17:00"></div>
-        <div><label for="service">Minut na zastávku</label><input id="service" type="number" min="0" value="30"></div>
+        <div><label for="service">Minut na zastávku</label><input id="service" type="number" min="0" value="45"></div>
         <div><label for="reload">Vyložení a naložení v prádelně (min)</label><input id="reload" type="number" min="0" value="20"></div>
         <p class="note wide" style="margin:0">Náklad se počítá v klecích. Den jízdy se předvyplní: od 15:00 zítřek, jinak dnešek.</p>
       </div>
@@ -557,7 +558,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 
 let state = {
   depot: { address:'', lat:null, lng:null },
-  settings: { start:'04:00', end:'17:00', service:30, reload:20, date:'' },
+  settings: { start:'04:00', end:'17:00', service:45, reload:20, date:'' },
   drivers: [],
   vehicles: [ {name:'Auto 1', capacity:30}, {name:'Auto 2', capacity:30} ],
   stops: [],
@@ -567,7 +568,7 @@ let geocache = {};
 const DEFAULT_SETTINGS = Object.assign({}, state.settings);
 try { const s = window.__BOOT.state; if (s) state = Object.assign(state, s); } catch(e){}
 state.settings = Object.assign({}, DEFAULT_SETTINGS, state.settings);
-state.settings.service = 30; // vykládka u každého zákazníka cca 30 min
+state.settings.service = 45; // vykládka u každého zákazníka cca 45 min
 state.drivers = state.drivers || [];
 const DEPOT = { address:'D&D laundry, Vidov 40, 370 07 Vidov', query:'Vidov 40, 370 07 Vidov' };
 if (state.depot.address !== DEPOT.address) state.depot = { address:DEPOT.address, query:DEPOT.query, lat:null, lng:null };
@@ -685,6 +686,7 @@ function ask(text, yes = 'Ano'){
 let toastT = null;
 function toast(text){ const t = $('toast'); t.textContent = text; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 4000); }
 const START_TIMES = ['3:00','3:30','4:00','7:00','7:30','8:00'];
+function maxSpeed(v){ return /^C/i.test(v.license || '') ? 90 : 110; }
 function todayISO(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 // 'next' = vedoucí zadává závozy na další den; 'same' = doručení ještě ten samý den
 function planMode(){ return (state.settings.date || todayISO()) > todayISO() ? 'next' : 'same'; }
@@ -785,7 +787,7 @@ function renderCarCards(){
           ${LICENSES.map(l => `<option ${v.license===l?'selected':''}>${l}</option>`).join('')}
         </select></div>
       </div>
-      <div class="card-foot"><span class="note">Další linka: ${(v.runs||0)+1}</span>
+      <div class="card-foot"><span class="note">Další linka: ${(v.runs||0)+1} · max. ${maxSpeed(v)} km/h</span>
         <button class="ghost" data-del="${i}" ${state.vehicles.length<2?'disabled':''}>Odebrat auto</button></div>
     </article>`).join('') : '<p class="empty">Zatím žádná auta.</p>';
 }
@@ -918,7 +920,7 @@ function driverMessage(k){
   const day = dayLabel(R.date);
   const lines = r.ids.map((id,i) => { const s = byId[id], t = r.times[i];
     const bits = [s.kind==='R' ? 'rozvoz' : 'vyzvednutí', klece(s.demand)]; if (s.window) bits.push('okno ' + s.window);
-    return `${i+1}. ${fmt(t.begin)} ${s.name ? s.name + ', ' : ''}${s.address} (${bits.join(', ')})${s.note ? '\n   ' + s.note : ''}`; });
+    return `${i+1}. ${fmt(t.begin)}–${fmt(t.begin + (R.service ?? 45))} ${s.name ? s.name + ', ' : ''}${s.address} (${bits.join(', ')})${s.note ? '\n   ' + s.note : ''}`; });
   const links = gmapsLinks(pts);
   return [
     `Linka ${r.linka} – ${v.name}${day ? ' – ' + day : ''}`,
@@ -1140,7 +1142,7 @@ async function getMatrix(points){
   } catch(e){
     // nouzově: vzdušná čára × 1,35 a průměr 35 km/h
     const dist = points.map(a => points.map(b => haversine(a,b)*1.35));
-    return { dur: dist.map(r => r.map(km => km/35*60)), dist, road:false };
+    return { dur: dist.map(r => r.map(km => km/60*60)), dist, road:false };
   }
 }
 
@@ -1176,17 +1178,21 @@ $('plan').onclick = async () => {
       return { demand: +s.demand || 0, from: w.from ?? 0, to: w.to ?? 24*60, vehicle: vi >= 0 ? vi : null }; });
     const vehicles = state.vehicles.map(v => ({ capacity:+v.capacity, start: startMinutes(v) }));
     const over = state.vehicles.map((v,k) => [v, stops.filter(x => x.vehicle === k).reduce((a,x) => a + x.demand, 0)]).filter(([v,sum]) => sum > v.capacity);
-    const S = makeSolver({ dur:M.dur, stops, vehicles, start, end, service });
+    // nejvyšší rychlost: auto pro oprávnění C (C1, CE…) 90 km/h, ostatní 110 km/h
+    const durK = state.vehicles.map(v => { const vmax = maxSpeed(v);
+      return M.dur.map((row,i) => row.map((d,j) => i === j ? 0 : Math.max(d, M.dist[i][j] / vmax * 60))); });
+    const Ss = state.vehicles.map((v,k) => makeSolver({ dur:durK[k], stops, vehicles, start, end, service }));
+    const S = { schedule: (r, k) => Ss[k].schedule(r, k) };
     // pevné pořadí podle zaškrtnutí, žádné přeskládání
     const sol = { unassigned: [], routes: state.vehicles.map((v,k) => {
       const r = usable.map((s,idx) => [s, idx + 1]).filter(([s]) => s.car === v.id)
         .sort((a,b) => (a[0].order||0) - (b[0].order||0)).map(([,n]) => n);
-      let travel = 0, prev = 0; r.forEach(c => { travel += M.dur[prev][c]; prev = c; }); if (r.length) travel += M.dur[prev][0];
+      const D = durK[k]; let travel = 0, prev = 0; r.forEach(c => { travel += D[prev][c]; prev = c; }); if (r.length) travel += D[prev][0];
       return { stops: r, travel, load: r.reduce((a,c) => a + stops[c-1].demand, 0) };
     }) };
     const late = sol.routes.map((r,k) => [state.vehicles[k], S.schedule(r.stops, k).back]).filter(([v,b], k) => sol.routes[k].stops.length && b > end);
     state.result = {
-      road: M.road, start, date: st.date,
+      road: M.road, start, date: st.date, service,
       routes: sol.routes.map((r,k) => {
         const sc = S.schedule(r.stops, k);
         let km = 0, prev = 0; r.stops.forEach(c => { km += M.dist[prev][c]; prev = c; }); if (r.stops.length) km += M.dist[prev][0];
@@ -1288,7 +1294,7 @@ function renderResults(){
         <li><span class="t">${fmt(r.start ?? R.start)}</span><span><span class="who">Výjezd z prádelny</span></span></li>
         ${r.ids.map((id,i) => { const s = byId[id], t = r.times[i];
           const wait = t.begin - t.arrive > 1 ? ` · čekání ${fmtDur(t.begin - t.arrive)}` : '';
-          return `<li><span class="t">${fmt(t.begin)}</span><span>
+          return `<li><span class="t">${fmt(t.begin)}<small>–${fmt(t.begin + (R.service ?? 45))}</small></span><span>
             <span class="who">${esc(s.name || 'Zastávka '+s.n)}</span><span class="kind ${s.kind==='R'?'r':'v'}">${s.kind==='R'?'rozvoz':'vyzvednutí'}</span>
             <div class="sub">${esc(s.address)} · ${esc(klece(s.demand))}${s.window ? ' · okno '+esc(s.window) : ''}${wait}${s.note ? '<br>' + esc(s.note) : ''}</div></span></li>`; }).join('')}
         <li><span class="t">${fmt(r.back)}</span><span><span class="who">Návrat do prádelny</span></span></li>
