@@ -152,6 +152,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
   .c-days.lic.days{grid-template-columns:repeat(7, 1fr)}
   .c-days.lic.days .every{grid-column:1 / -1}
 }
+.mode-hint{background:var(--field); border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:6px; padding:.5rem .7rem; margin:0 0 .6rem; font-size:.9rem}
 .pick-item .today{color:var(--blue); font-weight:600}
 .pick-sep{margin:.5rem 0 .1rem; font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
 .card-foot{display:flex; justify-content:space-between; align-items:center; margin-top:.7rem; gap:.5rem; flex-wrap:wrap}
@@ -242,7 +243,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 16:45</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:00</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -267,7 +268,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 16:45</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:00</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -328,6 +329,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
     <div class="panel">
       <h2>Auta a řidiči na lince</h2>
       <p class="hint">U každého auta vyberte řidiče a zaškrtněte zákazníky, které na této lince objede. Pořadí určí aplikace. Vlastní výjezd vyplňte, jen když auto vyjíždí jindy než ostatní.</p>
+      <p id="modeHint" class="mode-hint"></p>
       <div id="vehicles"></div>
     </div>
 
@@ -635,15 +637,20 @@ function pickerHtml(v){
     return `<label class="pick-item ${other ? 'other' : ''}" data-s="${esc((c.name + ' ' + c.address).toLowerCase())}">
       <input type="checkbox" data-pick="${c.id}" data-v="${v.id}" ${c.car === v.id ? 'checked' : ''}>
       <span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : esc(slotText(c))}</small></label>`; };
-  const todays = state.customers.filter(c => goesOn(c, day)), rest = state.customers.filter(c => !goesOn(c, day));
-  const list = state.customers.length ? (todays.length
+  const allowed = MODE_SLOTS[planMode()];
+  const shown = state.customers.filter(c => c.car === v.id || allowed.includes(slotOf(c)));
+  const hidden = state.customers.length - shown.length;
+  const todays = shown.filter(c => goesOn(c, day)), rest = shown.filter(c => !goesOn(c, day));
+  const hiddenNote = hidden ? `<p class="note" style="margin:.4rem 0 0">${hidden === 1 ? '1 zákazník s jiným nebo nevyplněným závozem je skrytý' : hidden <= 4 ? hidden + ' zákazníci s jiným nebo nevyplněným závozem jsou skrytí' : hidden + ' zákazníků s jiným nebo nevyplněným závozem je skrytých'}.</p>` : '';
+  const list = !state.customers.length ? '<p class="note" style="margin:0">Zatím žádní zákazníci. Přidejte je v záložce Zákazníci.</p>'
+    : !shown.length ? `<p class="note" style="margin:0">${planMode() === 'next' ? 'Žádný zákazník nemá závoz 3:00 – 4:00 ani 8:00.' : 'Žádný zákazník nemá 2. závoz.'} Nastavte to v záložce Zákazníci.</p>${hiddenNote}`
+    : (todays.length
       ? `<p class="pick-sep">Jezdí ${esc(dayLabel(state.settings.date).toLowerCase())}</p>${todays.map(item).join('')}${rest.length ? `<p class="pick-sep">Ostatní</p>${rest.map(item).join('')}` : ''}`
-      : state.customers.map(item).join(''))
-    : '<p class="note" style="margin:0">Zatím žádní zákazníci. Přidejte je v záložce Zákazníci.</p>';
+      : shown.map(item).join('')) + hiddenNote;
   return `<details class="pick" data-v="${v.id}" ${openPicks.has(v.id) ? 'open' : ''}>
     <summary>Zákazníci na lince: ${mine.length}<span class="note ${over ? 'warn' : ''}">${mine.length ? klece(sum) + ' z ' + klece(v.capacity) + (over ? ' – přetíženo' : '') : 'zatím nikdo'}</span></summary>
     <div class="pick-body">
-      ${state.customers.length > 6 ? `<input class="pick-filter" data-v="${v.id}" placeholder="Hledat zákazníka…" value="${esc(pickFilter[v.id] || '')}">` : ''}
+      ${shown.length > 6 ? `<input class="pick-filter" data-v="${v.id}" placeholder="Hledat zákazníka…" value="${esc(pickFilter[v.id] || '')}">` : ''}
       <div class="pick-list">${list}</div>
     </div></details>`;
 }
@@ -665,12 +672,42 @@ function ask(text, yes = 'Ano'){
 let toastT = null;
 function toast(text){ const t = $('toast'); t.textContent = text; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 4000); }
 const START_TIMES = ['3:00','3:30','4:00','7:00','7:30','8:00'];
+function todayISO(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+// 'next' = vedoucí zadává závozy na další den; 'same' = doručení ještě ten samý den
+function planMode(){ return (state.settings.date || todayISO()) > todayISO() ? 'next' : 'same'; }
+const MODE_SLOTS = { next:['e','8'], same:['z2'] };
+const normT = t => { const m = parseTime(t); return m == null || isNaN(m) ? '' : fmt(m); };
+// co je v menu „Vlastní výjezd“ vybráno: 'z2' nebo čas
+function startChoice(v){
+  if (v.start === 'z2') return 'z2';
+  if (!v.start && planMode() === 'same') return 'z2';
+  return normT(v.start) || normT(state.settings.start);
+}
+// skutečný čas výjezdu v minutách
+function startMinutes(v){
+  const ch = startChoice(v);
+  if (ch === 'z2') { const t = parseTime(v.nextStart); return t == null || isNaN(t) ? parseTime('8:00') : t; }
+  return parseTime(ch);
+}
 function startSelect(v, i){
-  const norm = t => { const m = parseTime(t); return m == null || isNaN(m) ? '' : fmt(m); };
-  const cur = norm(v.start) || norm(state.settings.start);
+  const cur = startChoice(v);
   const opts = START_TIMES.slice();
-  if (cur && !opts.includes(cur)) opts.unshift(cur);
-  return `<select data-i="${i}" data-k="start">${opts.map(t => `<option value="${t}" ${t === cur ? 'selected' : ''}>${t}${START_TIMES.includes(t) ? '' : ' (po návratu z linky)'}</option>`).join('')}</select>`;
+  if (cur !== 'z2' && cur && !opts.includes(cur)) opts.unshift(cur);
+  const z2 = `<option value="z2" ${cur === 'z2' ? 'selected' : ''}>2. závoz${v.nextStart ? ' (po návratu, ' + esc(v.nextStart) + ')' : ''}</option>`;
+  return `<select data-i="${i}" data-k="start">${opts.map(t => `<option value="${t}" ${t === cur ? 'selected' : ''}>${t}${START_TIMES.includes(t) ? '' : ' (po návratu z linky)'}</option>`).join('')}${z2}</select>`;
+}
+function refreshDay(){
+  const d = defaultDay();
+  if (d !== state.settings.date && !state.result) { state.settings.date = d; save(); renderVehicles(false); }
+}
+setInterval(refreshDay, 60000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshDay(); });
+function renderModeHint(){
+  const el = $('modeHint'); if (!el) return;
+  const d = dayLabel(state.settings.date).toLowerCase();
+  el.innerHTML = planMode() === 'next'
+    ? `Zadáváte závozy na <strong>další den, ${esc(d)}</strong> Nabízejí se zákazníci se závozem 3:00 – 4:00 a 8:00.`
+    : `Zadáváte doručení <strong>na dnešek, ${esc(d)}</strong> Nabízejí se jen zákazníci s 2. závozem.`;
 }
 function renderVehicles(withCards = true){
   if (withCards) renderCarCards();
@@ -686,7 +723,7 @@ function renderVehicles(withCards = true){
       ${v.driver && !hasLicense(state.drivers.find(d => d.id === v.driver), v.license) ? `<p class="note warn" style="grid-column:2 / -1;margin:0">Vybraný řidič nemá oprávnění ${esc(v.license)}, které toto auto vyžaduje.</p>` : ''}
       ${pickerHtml(v)}
     </div>`).join('') : '<p class="empty">Zatím žádná auta. Přidejte je v záložce Auta.</p>';
-  applyPickFilters();
+  applyPickFilters(); renderModeHint();
 }
 $('vehicles').addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.pick')) return;
@@ -801,7 +838,7 @@ document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('cl
 }));
 $('newDay').onclick = async () => {
   if (!(await ask('Začít nový den? Zruší se zaškrtnutí zákazníků u aut a výsledek, všechna auta začnou linkou 1 a zruší se jim vlastní výjezd. Adresář zákazníků zůstane.', 'Začít nový den'))) return;
-  state.vehicles.forEach(v => { v.start = ''; v.runs = 0; });
+  state.vehicles.forEach(v => { v.start = ''; v.nextStart = ''; v.runs = 0; });
   state.settings.date = defaultDay(); $('dDate').value = state.settings.date;
   state.stops = []; state.result = null; state.stale = false;
   save(); renderVehicles(); renderStops(); drawMarkers(); routeLayer.clearLayers(); renderResults();
@@ -812,7 +849,7 @@ async function prepareNext(){
   if (!(await ask('Připravit další linky? Zaškrtnutí zákazníků se zruší a autům, která jela, se nastaví výjezd podle návratu.', 'Připravit'))) return;
   const reload = +state.settings.reload || 0;
   R.routes.forEach((r,k) => { const v = state.vehicles[k];
-    if (r.ids.length && v){ v.start = fmt(r.back + reload); v.runs = (v.runs||0) + 1; } });
+    if (r.ids.length && v){ v.nextStart = fmt(r.back + reload); v.start = 'z2'; v.runs = (v.runs||0) + 1; } });
   state.stops = []; state.result = null; state.stale = false;
   save(); renderVehicles(); renderStops(); drawMarkers(); routeLayer.clearLayers(); renderResults();
   setStatus('Auta, která jela, mají výjezd podle návratu a číslo další linky. U aut, která zatím nejela, zkontrolujte výjezd. Zaškrtněte zákazníky další linky.');
@@ -1051,8 +1088,8 @@ $('plan').onclick = async () => {
   }
   if (state.vehicles.some(v => !(v.capacity > 0))) return setStatus('Každé auto potřebuje kapacitu větší než nula.', true);
   for (const v of state.vehicles){
-    const t = parseTime(v.start);
-    if (t != null && isNaN(t)) return setStatus(`${v.name}: vlastní výjezd zapište jako 7:20.`, true);
+    const t = startMinutes(v);
+    if (t == null || isNaN(t)) return setStatus(`${v.name}: vyberte vlastní výjezd.`, true);
   }
 
   lock(true);
@@ -1069,7 +1106,7 @@ $('plan').onclick = async () => {
     const stops = usable.map(s => { const w = parseWindow(s.window);
       const vi = s.car ? state.vehicles.findIndex(v => v.id === s.car) : -1;
       return { demand: +s.demand || 0, from: w.from ?? 0, to: w.to ?? 24*60, vehicle: vi >= 0 ? vi : null }; });
-    const vehicles = state.vehicles.map(v => { const t = parseTime(v.start); return { capacity:+v.capacity, start: t == null ? start : t }; });
+    const vehicles = state.vehicles.map(v => ({ capacity:+v.capacity, start: startMinutes(v) }));
     const over = state.vehicles.map((v,k) => [v, stops.filter(x => x.vehicle === k).reduce((a,x) => a + x.demand, 0)]).filter(([v,sum]) => sum > v.capacity);
     const S = makeSolver({ dur:M.dur, stops, vehicles, start, end, service });
     const sol = S.solve(Math.min(4000, 800 + usable.length*40));
@@ -1166,7 +1203,7 @@ function renderResults(){
     html += `<article class="ticket" style="--c:${c}">
       <h3>${esc(v.name)} · linka ${esc(r.linka)}</h3>
       ${drv ? `<div class="driver-line">${esc(drv.name)}</div>` : ''}
-      <div class="meta"><span>${r.ids.length} zastávek</span><span>${r.km.toFixed(1).replace('.', ',')} km</span>
+      <div class="meta"><span>${r.ids.length} ${r.ids.length === 1 ? 'zastávka' : r.ids.length <= 4 ? 'zastávky' : 'zastávek'}</span><span>${r.km.toFixed(1).replace('.', ',')} km</span>
         <span>náklad ${esc(r.load)} z ${esc(klece(v.capacity))}</span><span>zpět ${fmt(r.back)}</span></div>
       <ol>
         <li><span class="t">${fmt(r.start ?? R.start)}</span><span><span class="who">Výjezd z prádelny</span></span></li>
