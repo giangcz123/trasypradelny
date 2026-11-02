@@ -38,6 +38,9 @@ body.locked > :not(#lock):not(script){display:none !important}
   padding:.6rem .9rem; border-radius:8px; display:flex; gap:.75rem; align-items:center; max-width:calc(100% - 32px); box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .sync-bar button{background:var(--surface); color:var(--ink); border:0}
 #loginFields label{display:block}
+.ask-wrap{position:fixed; inset:0; z-index:950; background:rgba(10,12,20,.45); display:grid; place-items:center; padding:16px}
+.ask-card{background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:12px; padding:1.1rem 1.2rem; width:100%; max-width:420px}
+.ask-card p{margin:0 0 .5rem}
 html,body{margin:0}
 body{
   background:var(--bg); color:var(--ink);
@@ -126,9 +129,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 .lic.days label{position:relative; justify-content:center; padding:.35rem 0; font-size:.82rem}
 .lic.days .every{grid-column:1 / -1; justify-content:flex-start; padding:.35rem .55rem}
 .lic.slots{display:grid; grid-template-columns:repeat(3, 1fr); gap:.25rem}
-.lic.slots label{position:relative; justify-content:center; padding:.35rem 0; font-size:.82rem}
-.lic.slots label input{position:absolute; opacity:0; pointer-events:none}
-.lic.slots label:has(input:focus-visible){outline:2px solid var(--blue); outline-offset:1px}
+.lic.slots label{justify-content:flex-start; gap:.35rem; padding:.35rem .45rem; font-size:.82rem; white-space:nowrap}
 .days label:not(.every) input{position:absolute; opacity:0; pointer-events:none}
 .days label:has(input:focus-visible){outline:2px solid var(--blue); outline-offset:1px}
 .pick-item .today{color:var(--blue); font-weight:600}
@@ -234,6 +235,16 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
   </form>
 </div>
 <div id="syncBar" class="sync-bar" role="status" hidden></div>
+<div id="ask" class="ask-wrap" hidden>
+  <div class="ask-card" role="alertdialog" aria-modal="true" aria-labelledby="askText">
+    <p id="askText"></p>
+    <div class="row-actions" style="justify-content:flex-end">
+      <button id="askNo" type="button">Zrušit</button>
+      <button id="askYes" type="button" class="primary">Ano</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
   <p>D&amp;D laundry, Vidov</p>
@@ -622,6 +633,17 @@ function applyPickFilters(){
     d.querySelectorAll('.pick-item').forEach(it => { it.hidden = !!q && !it.dataset.s.includes(q); });
   });
 }
+function ask(text, yes = 'Ano'){
+  return new Promise(res => {
+    const w = $('ask'); $('askText').textContent = text; $('askYes').textContent = yes; w.hidden = false;
+    const done = v => { w.hidden = true; $('askYes').onclick = $('askNo').onclick = null; document.removeEventListener('keydown', key); res(v); };
+    const key = e => { if (e.key === 'Escape') done(false); };
+    $('askYes').onclick = () => done(true); $('askNo').onclick = () => done(false);
+    document.addEventListener('keydown', key); setTimeout(() => $('askYes').focus(), 0);
+  });
+}
+let toastT = null;
+function toast(text){ const t = $('toast'); t.textContent = text; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 4000); }
 const START_TIMES = ['3:00','3:30','4:00','7:00','7:30','8:00'];
 function startSelect(v, i){
   const norm = t => { const m = parseTime(t); return m == null || isNaN(m) ? '' : fmt(m); };
@@ -688,9 +710,9 @@ $('carCards').addEventListener('input', e => {
   if (k === 'capacity') markStale(); else { save(); if (!state.stale) renderResults(); }
   renderVehicles(false);
 });
-$('carCards').addEventListener('click', e => {
+$('carCards').addEventListener('click', async e => {
   const i = e.target.dataset.del; if (i == null) return;
-  if (!confirm(`Odebrat ${state.vehicles[+i].name}?`)) return;
+  if (!(await ask(`Odebrat ${state.vehicles[+i].name}?`, 'Odebrat'))) return;
   const gone = state.vehicles[+i].id;
   state.customers.forEach(c => { if (c.car === gone) c.car = ''; });
   state.vehicles.splice(+i,1); renderStops(); state.result = null; state.stale = false; save(); renderVehicles(); renderResults(); drawMarkers(); routeLayer.clearLayers();
@@ -735,9 +757,9 @@ $('driverCards').addEventListener('input', e => {
   if (e.target.dataset.k !== 'note') renderVehicles();
   if (!state.stale) renderResults();
 });
-$('driverCards').addEventListener('click', e => {
+$('driverCards').addEventListener('click', async e => {
   const i = e.target.dataset.del; if (i == null) return;
-  if (!confirm(`Odebrat řidiče ${state.drivers[+i].name || ''}?`)) return;
+  if (!(await ask(`Odebrat řidiče ${state.drivers[+i].name || ''}?`, 'Odebrat'))) return;
   const id = state.drivers[+i].id;
   state.drivers.splice(+i,1);
   state.vehicles.forEach(v => { if (v.driver === id) v.driver = ''; });
@@ -757,17 +779,17 @@ document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('cl
   $('tab-customers').hidden = b.dataset.tab !== 'customers';
   if (b.dataset.tab === 'plan') setTimeout(() => map.invalidateSize(), 0);
 }));
-$('newDay').onclick = () => {
-  if (!confirm('Začít nový den? Zruší se zaškrtnutí zákazníků u aut a výsledek, všechna auta začnou linkou 1 a zruší se jim vlastní výjezd. Adresář zákazníků zůstane.')) return;
+$('newDay').onclick = async () => {
+  if (!(await ask('Začít nový den? Zruší se zaškrtnutí zákazníků u aut a výsledek, všechna auta začnou linkou 1 a zruší se jim vlastní výjezd. Adresář zákazníků zůstane.', 'Začít nový den'))) return;
   state.vehicles.forEach(v => { v.start = ''; v.runs = 0; });
   state.settings.date = defaultDay(); $('dDate').value = state.settings.date;
   state.stops = []; state.result = null; state.stale = false;
   save(); renderVehicles(); renderStops(); drawMarkers(); routeLayer.clearLayers(); renderResults();
   setStatus('Nový den připraven. U aut zaškrtněte zákazníky první linky.');
 };
-function prepareNext(){
+async function prepareNext(){
   const R = state.result; if (!R) return;
-  if (!confirm('Připravit další linky? Zaškrtnutí zákazníků se zruší a autům, která jela, se nastaví výjezd podle návratu.')) return;
+  if (!(await ask('Připravit další linky? Zaškrtnutí zákazníků se zruší a autům, která jela, se nastaví výjezd podle návratu.', 'Připravit'))) return;
   const reload = +state.settings.reload || 0;
   R.routes.forEach((r,k) => { const v = state.vehicles[k];
     if (r.ids.length && v){ v.start = fmt(r.back + reload); v.runs = (v.runs||0) + 1; } });
@@ -867,10 +889,10 @@ $('custCards').addEventListener('input', e => {
   if (c.car && k !== 'note') markStale(); else save();
   if (k === 'name' || k === 'demand') renderVehicles(false);
 });
-$('custCards').addEventListener('click', e => {
+$('custCards').addEventListener('click', async e => {
   if (!e.target.hasAttribute('data-del')) return;
   const ci = +e.target.closest('.card').dataset.ci, c = state.customers[ci];
-  if (!confirm(`Odebrat zákazníka ${c.name || c.address}?`)) return;
+  if (!(await ask(`Odebrat zákazníka ${c.name || c.address || '(bez názvu)'}?`, 'Odebrat'))) return;
   const wasOnLine = !!c.car;
   state.customers.splice(ci, 1);
   if (wasOnLine && state.result){ state.result = null; state.stale = false; routeLayer.clearLayers(); renderResults(); }
@@ -897,7 +919,7 @@ $('doImport').onclick = () => {
   }
   $('importText').value = ''; $('importBox').hidden = true;
   save(); renderCustomers(); renderVehicles(false);
-  alert(`Přidáno ${added} zákazníků.` + (dup ? ` ${dup} už v adresáři bylo, ty jsem přeskočil.` : ''));
+  toast(`Přidáno ${added} zákazníků.` + (dup ? ` ${dup} už v adresáři bylo, ty jsem přeskočil.` : ''));
 };
 
 function setStatus(msg, err){ const el = $('status'); el.textContent = msg; el.className = err ? 'err' : ''; }
