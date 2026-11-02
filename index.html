@@ -214,6 +214,8 @@ button.danger:hover{border-color:var(--err)}
 .ticket h3{font-size:1.35rem; font-weight:800}
 .ticket .meta{display:flex; gap:1rem; flex-wrap:wrap; color:var(--muted); font-size:.85rem; margin:.35rem 0 .7rem}
 .ticket ol{list-style:none; margin:0; padding:0; border-top:1px dashed var(--line)}
+.ticket li.pause .who{color:var(--warn-ink)}
+.ticket li.pause{background:var(--warn-bg)}
 .ticket li .t small{display:block; font-weight:500; color:var(--muted); font-size:.8rem}
 .ticket li{display:grid; grid-template-columns:60px 1fr; gap:.5rem; padding:.45rem 0; border-bottom:1px dashed var(--line)}
 .ticket li .t{font-weight:700; font-variant-numeric:tabular-nums}
@@ -249,7 +251,7 @@ button.danger:hover{border-color:var(--err)}
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 18:00</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 18:10</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -274,7 +276,7 @@ button.danger:hover{border-color:var(--err)}
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 18:00</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 18:10</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -761,7 +763,7 @@ $('vehicles').addEventListener('change', e => {
   if (e.target.checked) { c.car = vid; c.order = carOrder(vid).filter(x => x !== c).length + 1; renumber(vid); }
   else { c.car = ''; c.order = 0; }
   if (was && was !== c.car) renumber(was);
-  markStale();
+  save(); // zaškrtávání připravuje další plánování, hotové trasy nemění
   const y = window.scrollY, list = e.target.closest('.pick-list'), st = list ? list.scrollTop : 0;
   renderVehicles(false); drawMarkers();
   const nl = document.querySelector(`details.pick[data-v="${vid}"] .pick-list`); if (nl) nl.scrollTop = st;
@@ -772,7 +774,7 @@ $('vehicles').addEventListener('input', e => {
   const i = e.target.dataset.i, k = e.target.dataset.k; if (i == null) return;
   state.vehicles[i][k] = e.target.value;
   if (k === 'driver') { save(); renderVehicles(); if (!state.stale) renderResults(); }
-  else if (k === 'start') { markStale(); renderVehicles(false); }
+  else if (k === 'start') { save(); renderVehicles(false); }
   else markStale();
 });
 function renderCarCards(){
@@ -875,7 +877,7 @@ $('newDay').onclick = async () => {
   setStatus('Nový den připraven. U aut zaškrtněte zákazníky první linky.');
 };
 async function deletePlan(){
-  if (!(await ask('Smazat všechny naplánované trasy? Zaškrtnutí hotelů u aut zůstane, takže je můžete hned naplánovat znovu.', 'Smazat trasy'))) return;
+  if (!(await ask('Smazat všechny naplánované trasy?', 'Smazat trasy'))) return;
   state.result = null; state.stale = false; save();
   routeLayer.clearLayers(); drawMarkers(); renderResults();
   setStatus('Naplánované trasy jsou smazané.');
@@ -883,7 +885,7 @@ async function deletePlan(){
 async function deleteRoute(k){
   const R = state.result; if (!R || !R.routes[k]) return;
   const v = state.vehicles[k] || { name:'auta' };
-  if (!(await ask(`Smazat trasu ${v.name}? Hotely zůstanou u auta zaškrtnuté.`, 'Smazat trasu'))) return;
+  if (!(await ask(`Smazat trasu ${v.name}?`, 'Smazat trasu'))) return;
   R.routes[k] = { ...R.routes[k], ids:[], times:[], km:0, travel:0, load:0, back:R.routes[k].start };
   if (!R.routes.some(r => r.ids.length)) state.result = null;
   save(); routeLayer.clearLayers(); drawMarkers(); renderResults(); await drawRoutes();
@@ -912,20 +914,24 @@ function dayLabel(iso){
   const s = new Date(y, m-1, d).toLocaleDateString('cs-CZ', {weekday:'long', day:'numeric', month:'numeric'});
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+function pauseRow(r){
+  return `<li class="pause"><span class="t">${fmt(r.breakAt)}<small>–${fmt(r.breakAt + 45)}</small></span><span><span class="who">Povinná pauza 45 min</span></span></li>`;
+}
 function driverMessage(k){
   const R = state.result, r = R.routes[k], v = state.vehicles[k];
   const byId = Object.fromEntries(state.customers.map(s => [s.id, s]));
   const d = [state.depot.lat, state.depot.lng];
   const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
   const day = dayLabel(R.date);
+  const pauseLine = r.breakAt != null ? `   Povinná pauza ${fmt(r.breakAt)}–${fmt(r.breakAt + 45)}` : '';
   const lines = r.ids.map((id,i) => { const s = byId[id], t = r.times[i];
     const bits = [s.kind==='R' ? 'rozvoz' : 'vyzvednutí', klece(s.demand)]; if (s.window) bits.push('okno ' + s.window);
-    return `${i+1}. ${fmt(t.begin)}–${fmt(t.begin + (R.service ?? 45))} ${s.name ? s.name + ', ' : ''}${s.address} (${bits.join(', ')})${s.note ? '\n   ' + s.note : ''}`; });
+    return (r.breakIdx === i ? pauseLine + '\n' : '') + `${i+1}. ${fmt(t.begin)}–${fmt(t.begin + (R.service ?? 45))} ${s.name ? s.name + ', ' : ''}${s.address} (${bits.join(', ')})${s.note ? '\n   ' + s.note : ''}`; });
   const links = gmapsLinks(pts);
   return [
     `Linka ${r.linka} – ${v.name}${day ? ' – ' + day : ''}`,
     `Výjezd z prádelny v ${fmt(r.start)}.`,
-    '', ...lines, '',
+    '', ...lines, ...(r.breakIdx === r.ids.length && pauseLine ? [pauseLine] : []), '',
     `Návrat do prádelny kolem ${fmt(r.back)}, náklad celkem ${klece(r.load)}.`,
     `Navigace${links.length > 1 ? ' (po částech)' : ''}:`, ...links
   ].join('\n');
@@ -1182,7 +1188,22 @@ $('plan').onclick = async () => {
     const durK = state.vehicles.map(v => { const vmax = maxSpeed(v);
       return M.dur.map((row,i) => row.map((d,j) => i === j ? 0 : Math.max(d, M.dist[i][j] / vmax * 60))); });
     const Ss = state.vehicles.map((v,k) => makeSolver({ dur:durK[k], stops, vehicles, start, end, service }));
-    const S = { schedule: (r, k) => Ss[k].schedule(r, k) };
+    const PAUSE = 45, PAUSE_AFTER = 270; // pauza 45 min po 4,5 h od výjezdu (auta skupiny C)
+    const S = { schedule: (r, k) => {
+      const D = durK[k], isC = maxSpeed(state.vehicles[k]) === 90, t0 = vehicles[k].start;
+      let t = t0, prev = 0, load = 0, breakAt = null, breakIdx = null; const out = [];
+      r.forEach((c, i) => {
+        const s0 = stops[c-1], drive = D[prev][c];
+        if (isC && breakAt == null && t + drive - t0 > PAUSE_AFTER) { breakAt = t; breakIdx = i; t += PAUSE; }
+        t += drive; const arrive = t; if (t < s0.from) t = s0.from;
+        load += s0.demand; out.push({ c, arrive, begin:t, load }); t += service; prev = c;
+      });
+      if (r.length) {
+        if (isC && breakAt == null) { breakAt = t; breakIdx = r.length; t += PAUSE; }
+        t += D[prev][0];
+      }
+      return { out, back: r.length ? t : t0, breakAt, breakIdx };
+    } };
     // pevné pořadí podle zaškrtnutí, žádné přeskládání
     const sol = { unassigned: [], routes: state.vehicles.map((v,k) => {
       const r = usable.map((s,idx) => [s, idx + 1]).filter(([s]) => s.car === v.id)
@@ -1191,17 +1212,25 @@ $('plan').onclick = async () => {
       return { stops: r, travel, load: r.reduce((a,c) => a + stops[c-1].demand, 0) };
     }) };
     const late = sol.routes.map((r,k) => [state.vehicles[k], S.schedule(r.stops, k).back]).filter(([v,b], k) => sol.routes[k].stops.length && b > end);
+    const prevRes = state.result || null;
     state.result = {
       road: M.road, start, date: st.date, service,
       routes: sol.routes.map((r,k) => {
         const sc = S.schedule(r.stops, k);
         let km = 0, prev = 0; r.stops.forEach(c => { km += M.dist[prev][c]; prev = c; }); if (r.stops.length) km += M.dist[prev][0];
         return { ids: r.stops.map(c => usable[c-1].id), times: sc.out.map(x => ({arrive:x.arrive, begin:x.begin, load:x.load})),
-                 linka: (state.vehicles[k].runs||0) + 1, start: vehicles[k].start, back: sc.back, km, travel: r.travel || 0, load: r.load || 0 };
+                 linka: (state.vehicles[k].runs||0) + 1, start: vehicles[k].start, back: sc.back, km, travel: r.travel || 0, load: r.load || 0,
+                 breakAt: sc.breakAt, breakIdx: sc.breakIdx, driver: state.vehicles[k].driver || '' };
       }),
       unassigned: sol.unassigned.map(c => usable[c-1].id).concat(skipped.map(s => s.id)),
     };
-    state.stale = false; save();
+    // auta bez nově zaškrtnutých hotelů si ponechají dříve naplánovanou trasu
+    if (prevRes) state.result.routes = state.result.routes.map((r,k) => (!r.ids.length && prevRes.routes[k] && prevRes.routes[k].ids.length) ? prevRes.routes[k] : r);
+    state.stale = false;
+    // dlaždice „Auta a řidiči na lince“ se po naplánování vynuluje
+    state.customers.forEach(c => { c.car = ''; c.order = 0; });
+    state.vehicles.forEach(v => { v.driver = ''; v.start = ''; });
+    save(); renderVehicles(false);
     drawMarkers(true); renderResults(); await drawRoutes();
     const nu = state.result.unassigned.length;
     const warns = over.map(([v,sum]) => `${v.name} má zaškrtnuto ${klece(sum)} a uveze ${klece(v.capacity)}`)
@@ -1277,7 +1306,7 @@ function renderResults(){
     }
     const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
     const links = gmapsLinks(pts);
-    const drv = state.drivers.find(x => x.id === v.driver);
+    const drv = state.drivers.find(x => x.id === (r.driver ?? v.driver));
     const num = drv && waNumber(drv.phone);
     let wa;
     if (state.stale) wa = '<span class="note">Před odesláním trasy přepočítejte.</span>';
@@ -1294,9 +1323,10 @@ function renderResults(){
         <li><span class="t">${fmt(r.start ?? R.start)}</span><span><span class="who">Výjezd z prádelny</span></span></li>
         ${r.ids.map((id,i) => { const s = byId[id], t = r.times[i];
           const wait = t.begin - t.arrive > 1 ? ` · čekání ${fmtDur(t.begin - t.arrive)}` : '';
-          return `<li><span class="t">${fmt(t.begin)}<small>–${fmt(t.begin + (R.service ?? 45))}</small></span><span>
+          return (r.breakIdx === i ? pauseRow(r) : '') + `<li><span class="t">${fmt(t.begin)}<small>–${fmt(t.begin + (R.service ?? 45))}</small></span><span>
             <span class="who">${esc(s.name || 'Zastávka '+s.n)}</span><span class="kind ${s.kind==='R'?'r':'v'}">${s.kind==='R'?'rozvoz':'vyzvednutí'}</span>
             <div class="sub">${esc(s.address)} · ${esc(klece(s.demand))}${s.window ? ' · okno '+esc(s.window) : ''}${wait}${s.note ? '<br>' + esc(s.note) : ''}</div></span></li>`; }).join('')}
+        ${r.breakIdx === r.ids.length ? pauseRow(r) : ''}
         <li><span class="t">${fmt(r.back)}</span><span><span class="who">Návrat do prádelny</span></span></li>
       </ol>
       <div class="links">${wa}</div>
