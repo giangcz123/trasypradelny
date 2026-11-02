@@ -125,6 +125,10 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 .lic.days{display:grid; grid-template-columns:repeat(7, 1fr); gap:.25rem}
 .lic.days label{position:relative; justify-content:center; padding:.35rem 0; font-size:.82rem}
 .lic.days .every{grid-column:1 / -1; justify-content:flex-start; padding:.35rem .55rem}
+.lic.slots{display:grid; grid-template-columns:repeat(3, 1fr); gap:.25rem}
+.lic.slots label{position:relative; justify-content:center; padding:.35rem 0; font-size:.82rem}
+.lic.slots label input{position:absolute; opacity:0; pointer-events:none}
+.lic.slots label:has(input:focus-visible){outline:2px solid var(--blue); outline-offset:1px}
 .days label:not(.every) input{position:absolute; opacity:0; pointer-events:none}
 .days label:has(input:focus-visible){outline:2px solid var(--blue); outline-offset:1px}
 .pick-item .today{color:var(--blue); font-weight:600}
@@ -259,7 +263,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 
 <section id="tab-customers" class="registry" role="tabpanel" hidden>
   <h2>Zákazníci</h2>
-  <p class="lead">Stálý adresář hotelů. Zaškrtněte dny, kdy se k hotelu jezdí. V Plánování se pak hotely na ten den nabízejí u aut nahoře.</p>
+  <p class="lead">Stálý adresář hotelů. Zaškrtněte dny, kdy se k hotelu jezdí, a ve kterém závozu. V Plánování se pak hotely na ten den nabízejí u aut nahoře.</p>
   <div class="row-actions" style="margin:0 0 1rem"><input id="custFilter" placeholder="Hledat zákazníka…" style="max-width:320px"></div>
   <div id="custCards" class="cards cards-sm"></div>
   <div class="row-actions">
@@ -599,7 +603,7 @@ function pickerHtml(v){
     const other = c.car && c.car !== v.id ? state.vehicles.find(x => x.id === c.car) : null;
     return `<label class="pick-item ${other ? 'other' : ''}" data-s="${esc((c.name + ' ' + c.address).toLowerCase())}">
       <input type="checkbox" data-pick="${c.id}" data-v="${v.id}" ${c.car === v.id ? 'checked' : ''}>
-      <span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : ''}</small></label>`; };
+      <span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : esc(slotText(c))}</small></label>`; };
   const todays = state.customers.filter(c => goesOn(c, day)), rest = state.customers.filter(c => !goesOn(c, day));
   const list = state.customers.length ? (todays.length
       ? `<p class="pick-sep">Jezdí ${esc(dayLabel(state.settings.date).toLowerCase())}</p>${todays.map(item).join('')}${rest.length ? `<p class="pick-sep">Ostatní</p>${rest.map(item).join('')}` : ''}`
@@ -811,6 +815,8 @@ function custGeo(c){
 }
 const DAYS = [['po','Po'],['ut','Út'],['st','St'],['ct','Čt'],['pa','Pá'],['so','So'],['ne','Ne']];
 const DAY_BY_JS = ['ne','po','ut','st','ct','pa','so'];
+const SLOTS = [['e','3:00 – 4:00'],['8','8:00'],['z2','2. závoz']];
+const slotText = c => SLOTS.filter(([k]) => (c.slots||[]).includes(k)).map(([,l]) => l).join(', ');
 function planDay(){
   const d = state.settings.date; if (!d) return null;
   const [y,m,dd] = d.split('-').map(Number); return DAY_BY_JS[new Date(y, m-1, dd).getDay()];
@@ -828,6 +834,9 @@ function renderCustomers(){
           <label class="every"><input type="checkbox" data-day="all" ${(c.days||[]).length === 7 ? 'checked' : ''}>Každý den</label>
           ${DAYS.map(([k,l]) => `<label><input type="checkbox" data-day="${k}" ${(c.days||[]).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
         </div></div>
+        <div class="wide"><label>Závoz</label><div class="lic slots">
+          ${SLOTS.map(([k,l]) => `<label><input type="checkbox" data-slot="${k}" ${(c.slots||[]).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
+        </div></div>
       </div>
       <div class="card-foot">${custGeo(c)}<button class="ghost" data-del>Odebrat</button></div>
     </article>`).join('') : '<p class="empty">Nikdo neodpovídá hledání.</p>')
@@ -837,6 +846,13 @@ $('custFilter').addEventListener('input', renderCustomers);
 $('custCards').addEventListener('input', e => {
   const card = e.target.closest('.card'); if (!card) return;
   const c = state.customers[+card.dataset.ci];
+  const slot = e.target.dataset.slot;
+  if (slot){
+    const set = new Set(c.slots || []);
+    if (e.target.checked) set.add(slot); else set.delete(slot);
+    c.slots = SLOTS.map(([k]) => k).filter(k => set.has(k));
+    save(); renderVehicles(false); return;
+  }
   const day = e.target.dataset.day;
   if (day){
     const set = new Set(c.days || []);
@@ -863,7 +879,7 @@ $('custCards').addEventListener('click', e => {
 });
 $('addCustomer').onclick = () => {
   $('custFilter').value = '';
-  state.customers.push({ id:'c'+(uid++), name:'', address:'', demand:1, window:'', kind:'V', note:'', days:[], car:'', lat:null, lng:null, label:'' });
+  state.customers.push({ id:'c'+(uid++), name:'', address:'', demand:1, window:'', kind:'V', note:'', days:[], slots:[], car:'', lat:null, lng:null, label:'' });
   save(); renderCustomers(); renderVehicles(false);
   const cards = document.querySelectorAll('#custCards .card'); cards[cards.length-1]?.querySelector('input')?.focus();
 };
