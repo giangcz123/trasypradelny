@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{
   color-scheme: light;
@@ -157,6 +156,8 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 .pick-order{margin:0 0 .4rem; padding:.45rem .6rem .45rem 2rem; background:var(--surface); border:1px solid var(--line); border-radius:6px; font-size:.86rem; columns:2; column-gap:1.5rem}
 .pick-order li{break-inside:avoid; padding:.05rem 0}
 @media (max-width:640px){ .pick-order{columns:1} }
+button.danger{color:var(--err)}
+button.danger:hover{border-color:var(--err)}
 .pick-item .today{color:var(--blue); font-weight:600}
 .pick-sep{margin:.5rem 0 .1rem; font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
 .card-foot{display:flex; justify-content:space-between; align-items:center; margin-top:.7rem; gap:.5rem; flex-wrap:wrap}
@@ -247,7 +248,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:35</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 17:45</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -272,7 +273,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:35</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 17:45</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
@@ -348,12 +349,15 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
   </section>
 
   <section class="right">
-    <div id="map" aria-label="Mapa zastávek"></div>
     <div id="results"></div>
   </section>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// Mapa je vypnutá: náhradní prázdná knihovna, aby zbytek aplikace fungoval beze změn.
+window.L = (function(){ const o = () => { const x = {}; ['setView','fitBounds','invalidateSize','addTo','clearLayers','bindTooltip','on','addLayer'].forEach(k => x[k] = () => x); x.getLatLng = () => ({lat:0,lng:0}); return x; };
+  return { map:o, tileLayer:o, layerGroup:o, marker:o, polyline:o, divIcon:() => ({}) }; })();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // Solver: více aut, kapacita, časová okna, start a návrat do depa (uzel 0).
@@ -867,6 +871,21 @@ $('newDay').onclick = async () => {
   save(); renderVehicles(); renderStops(); drawMarkers(); routeLayer.clearLayers(); renderResults();
   setStatus('Nový den připraven. U aut zaškrtněte zákazníky první linky.');
 };
+async function deletePlan(){
+  if (!(await ask('Smazat všechny naplánované trasy? Zaškrtnutí hotelů u aut zůstane, takže je můžete hned naplánovat znovu.', 'Smazat trasy'))) return;
+  state.result = null; state.stale = false; save();
+  routeLayer.clearLayers(); drawMarkers(); renderResults();
+  setStatus('Naplánované trasy jsou smazané.');
+}
+async function deleteRoute(k){
+  const R = state.result; if (!R || !R.routes[k]) return;
+  const v = state.vehicles[k] || { name:'auta' };
+  if (!(await ask(`Smazat trasu ${v.name}? Hotely zůstanou u auta zaškrtnuté.`, 'Smazat trasu'))) return;
+  R.routes[k] = { ...R.routes[k], ids:[], times:[], km:0, travel:0, load:0, back:R.routes[k].start };
+  if (!R.routes.some(r => r.ids.length)) state.result = null;
+  save(); routeLayer.clearLayers(); drawMarkers(); renderResults(); await drawRoutes();
+  setStatus(`Trasa ${v.name} je smazaná.`);
+}
 async function prepareNext(){
   const R = state.result; if (!R) return;
   if (!(await ask('Připravit další linky? Zaškrtnutí zákazníků se zruší a autům, která jela, se nastaví výjezd podle návratu.', 'Připravit'))) return;
@@ -1188,7 +1207,8 @@ $('plan').onclick = async () => {
   lock(false);
 };
 
-async function drawRoutes(){
+async function drawRoutes(){ return; // mapa je vypnutá
+
   routeLayer.clearLayers();
   if (!state.result || state.stale) return;
   const byId = Object.fromEntries(state.customers.map(s => [s.id, s]));
@@ -1239,7 +1259,8 @@ function renderResults(){
     <div><strong>${fmtDur(totT)}</strong> <span>čisté jízdy</span></div>
     <div><strong>${used.length} z ${R.routes.length}</strong> <span>aut vyjíždí</span></div></div>
     <div class="row-actions res"><button onclick="window.print()">Vytisknout listy pro řidiče</button>
-      <button id="nextLinka" ${state.stale ? 'disabled' : ''}>Připravit další linky</button></div>`;
+      <button id="nextLinka" ${state.stale ? 'disabled' : ''}>Připravit další linky</button>
+      <button id="delPlan" class="ghost danger">Smazat naplánované trasy</button></div>`;
   html += '<div class="tickets">';
   R.routes.forEach((r,k) => {
     const v = state.vehicles[k] || {name:`Auto ${k+1}`, capacity:'?'};
@@ -1273,6 +1294,7 @@ function renderResults(){
       </ol>
       <div class="links">${wa}</div>
       <div class="links">${links.map((u,i) => `<a href="${u}" target="_blank" rel="noopener">Navigace v Google Mapách${links.length>1 ? ' (část '+(i+1)+')' : ''}</a>`).join('')}</div>
+      <div class="links"><button class="ghost danger" data-delroute="${k}">Smazat trasu tohoto auta</button></div>
     </article>`;
   });
   html += '</div>';
@@ -1282,6 +1304,8 @@ function renderResults(){
   }
   box.innerHTML = html;
   $('nextLinka')?.addEventListener('click', prepareNext);
+  $('delPlan')?.addEventListener('click', deletePlan);
+  box.querySelectorAll('[data-delroute]').forEach(b => b.addEventListener('click', () => deleteRoute(+b.dataset.delroute)));
 }
 
 // ---------- start ----------
