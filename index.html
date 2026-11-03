@@ -162,6 +162,51 @@ nav.tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(
 @media (max-width:640px){ .pick-order{columns:1} }
 button.danger{color:var(--err)}
 button.danger:hover{border-color:var(--err)}
+.day-nav{display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.8rem}
+.day-nav h2{font-size:1.25rem}
+.day-nav .dn{font-size:1.6rem; line-height:1; min-width:44px; min-height:44px; color:var(--ink)}
+.card.mgr{margin-bottom:1rem; max-width:520px}
+.chips{display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.7rem}
+.chips button{min-height:44px; padding:.4rem .9rem; border-radius:999px; position:relative}
+.chips button[aria-pressed="true"]{background:var(--blue); color:var(--blue-ink); border-color:var(--blue)}
+.chips .dot-alert{position:absolute; top:4px; right:6px; width:9px; height:9px; border-radius:50%; background:var(--err)}
+.op-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1rem; margin-bottom:.8rem}
+.op-card h3{font-size:1.15rem; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap}
+.op-card .sw{width:12px; height:12px; border-radius:50%; flex:none}
+.op-card .right{margin-left:auto; font-weight:500; font-size:.9rem; color:var(--muted); font-stretch:100%}
+.op-meta{color:var(--muted); font-size:.9rem; margin:.3rem 0 .6rem}
+.prog{height:8px; border-radius:999px; background:var(--field); border:1px solid var(--line); overflow:hidden; margin:.5rem 0 .4rem}
+.prog i{display:block; height:100%}
+.st-line{display:flex; justify-content:space-between; gap:.6rem; flex-wrap:wrap; font-size:.95rem}
+.badge{display:inline-block; font-size:.78rem; font-weight:700; padding:.15rem .5rem; border-radius:999px}
+.badge.ok{background:#E3F2EC; color:#0B5E49}
+.badge.wait{background:var(--field); color:var(--muted); border:1px solid var(--line)}
+.badge.warn{background:var(--warn-bg); color:var(--warn-ink)}
+.badge.err{background:#FDECEA; color:#8C1D18}
+.issues{background:#FDECEA; color:#5A1A16; border-radius:8px; padding:.6rem .75rem; margin-top:.6rem; font-size:.92rem}
+.issues strong{color:#8C1D18}
+.issues ul{margin:.2rem 0 0; padding-left:1.1rem}
+.op-actions{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.7rem}
+.op-actions a, .op-actions button{min-height:44px; display:inline-flex; align-items:center; padding:.4rem .8rem; border:1px solid var(--line); border-radius:8px; text-decoration:none; color:var(--ink); font-weight:600; background:var(--surface)}
+.ld-row{display:flex; align-items:center; gap:.6rem; padding:.55rem 0; border-top:1px solid var(--line)}
+.ld-row:first-child{border-top:0}
+.ld-row .nm{flex:1; font-weight:600}
+.ld-row .nm small{display:block; font-weight:400; color:var(--warn-ink)}
+.ld-row button{width:44px; height:44px; border-radius:999px; font-size:1.3rem; padding:0; flex:none}
+.ld-row .v{width:2.2rem; text-align:center; font-size:1.35rem; font-weight:800; font-variant-numeric:tabular-nums}
+.ld-sum{display:flex; justify-content:space-between; align-items:baseline; font-weight:700; margin:.6rem 0}
+.ld-sum b{font-size:1.4rem}
+.okbar{background:#E3F2EC; color:#0B5E49; border-radius:8px; padding:.6rem .75rem; margin:.4rem 0; font-size:.92rem}
+.infobar{background:var(--field); border:1px solid var(--line); border-radius:8px; padding:.6rem .75rem; margin:.4rem 0; font-size:.92rem}
+.warnbar{background:var(--warn-bg); color:var(--warn-ink); border-radius:8px; padding:.6rem .75rem; margin:.4rem 0; font-size:.92rem}
+.big-btn{width:100%; min-height:52px; font-size:1.05rem; margin-top:.4rem}
+.ret{margin-top:1rem; padding-top:.8rem; border-top:1px dashed var(--line)}
+.ret label{display:block; margin-top:.5rem}
+@media (prefers-color-scheme: dark){
+  .badge.ok, .okbar{background:#163626; color:#86EFAC}
+  .badge.err{background:#3B1714; color:#FFB4AB}
+  .issues{background:#3B1714; color:#FFD9D4} .issues strong{color:#FFB4AB}
+}
 .pick-item .today{color:var(--blue); font-weight:600}
 .pick-sep{margin:.5rem 0 .1rem; font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
 .card-foot{display:flex; justify-content:space-between; align-items:center; margin-top:.7rem; gap:.5rem; flex-wrap:wrap}
@@ -248,8 +293,8 @@ button.danger:hover{border-color:var(--err)}
   header.top > p, #whoami{display:none}
   #lockNow{margin-left:auto; padding:.35rem .5rem}
   nav.tabs{position:fixed; left:0; right:0; bottom:0; z-index:600; margin:0; gap:0; background:var(--surface);
-    border-top:1px solid var(--line); padding:0 0 env(safe-area-inset-bottom); display:grid; grid-template-columns:repeat(4,1fr)}
-  nav.tabs button{padding:.85rem .2rem .8rem; border-bottom:0; border-top:3px solid transparent; font-size:.9rem}
+    border-top:1px solid var(--line); padding:0 0 env(safe-area-inset-bottom); display:grid; grid-template-columns:repeat(var(--ntabs,6),1fr)}
+  nav.tabs button{padding:.85rem .1rem .8rem; border-bottom:0; border-top:3px solid transparent; font-size:.78rem; font-stretch:90%}
   nav.tabs button[aria-selected="true"]{border-top-color:var(--blue); color:var(--blue)}
   .layout{padding:.6rem .6rem 0; gap:.6rem}
   .panel{padding:.85rem .8rem; margin-bottom:.6rem; border-radius:12px}
@@ -298,7 +343,7 @@ body.locked{padding-bottom:0}
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 2.11. 18:25</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 3.11.</p>
     <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
     <div id="loginFields">
       <label for="email">E-mail</label>
@@ -323,9 +368,11 @@ body.locked{padding-bottom:0}
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 2.11. 18:25</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 3.11.</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
+    <button role="tab" data-tab="stav" aria-selected="false">Stav</button>
+    <button role="tab" data-tab="exp" aria-selected="false">Expedice</button>
     <button role="tab" data-tab="cars" aria-selected="false">Auta</button>
     <button role="tab" data-tab="drivers" aria-selected="false">Řidiči</button>
     <button role="tab" data-tab="customers" aria-selected="false">Zákazníci</button>
@@ -344,13 +391,25 @@ body.locked{padding-bottom:0}
 <section id="tab-drivers" class="registry" role="tabpanel" hidden>
   <h2>Řidiči</h2>
   <p class="lead">Na uvedený telefon se posílají linky přes WhatsApp. Telefon zadejte jako +420 777 123 456.</p>
+  <div class="card mgr"><label for="mgrPhone">Telefon vedoucího (řidiči na něj mohou z linky zavolat)</label>
+    <input id="mgrPhone" type="tel" placeholder="+420 …"></div>
   <div id="driverCards" class="cards"></div>
   <div class="row-actions"><button id="addDriver">Přidat řidiče</button></div>
 </section>
 
+<section id="tab-stav" class="registry" role="tabpanel" hidden>
+  <div class="day-nav"><button class="ghost dn" data-dd="-1" aria-label="Předchozí den">‹</button><h2 class="dn-day"></h2><button class="ghost dn" data-dd="1" aria-label="Následující den">›</button></div>
+  <div id="stavBody"></div>
+</section>
+
+<section id="tab-exp" class="registry" role="tabpanel" hidden>
+  <div class="day-nav"><button class="ghost dn" data-dd="-1" aria-label="Předchozí den">‹</button><h2 class="dn-day"></h2><button class="ghost dn" data-dd="1" aria-label="Následující den">›</button></div>
+  <div id="expBody"></div>
+</section>
+
 <section id="tab-customers" class="registry wide-reg" role="tabpanel" hidden>
   <h2>Zákazníci</h2>
-  <p class="lead">Stálý adresář hotelů. Zaškrtněte dny, kdy se k hotelu jezdí, a ve kterém závozu. V Plánování se pak hotely na ten den nabízejí u aut nahoře.</p>
+  <p class="lead">Stálý adresář hotelů. Zaškrtněte dny, kdy se k hotelu jezdí, a ve kterých závozech (nejvýš dva). V Plánování se pak hotely na ten den nabízejí u aut nahoře.</p>
   <div class="row-actions" style="margin:0 0 1rem"><input id="custFilter" placeholder="Hledat zákazníka…" style="max-width:320px"></div>
   <div id="custCards" class="crows"></div>
   <div class="row-actions">
@@ -700,7 +759,7 @@ function pickerHtml(v){
   const allowed = [vSlot];
   const sameDay = vSlot === 'z2'; // 2. závoz: jen zákazníci se zaškrtnutým dnem
   // 2. závoz: jen zákazníci se zaškrtnutým konkrétním dnem
-  const shown = state.customers.filter(c => c.car === v.id || (allowed.includes(slotOf(c)) && (!sameDay || goesOn(c, day))));
+  const shown = state.customers.filter(c => c.car === v.id || (slotsOf(c).some(k => allowed.includes(k)) && (!sameDay || goesOn(c, day))));
   const hidden = state.customers.length - shown.length;
   const todays = shown.filter(c => goesOn(c, day)), rest = shown.filter(c => !goesOn(c, day));
   const hiddenNote = hidden ? `<p class="note" style="margin:.4rem 0 0">${(() => { const why = sameDay ? 's jiným závozem nebo bez jízdy v tento den' : 's jiným nebo nevyplněným závozem'; return hidden === 1 ? '1 zákazník ' + why + ' je skrytý' : hidden <= 4 ? hidden + ' zákazníci ' + why + ' jsou skrytí' : hidden + ' zákazníků ' + why + ' je skrytých'; })()}.</p>` : '';
@@ -865,6 +924,10 @@ function driverFoot(d, i){
   return `<span class="note ${d.phone && !num ? 'warn' : ''}">${d.phone ? (num ? 'Číslo je v pořádku' + (cars.length ? ' · nesmí řídit: ' + esc(cars.join(', ')) : '') : 'Telefon nemá platný tvar') : 'Chybí telefon'}</span>
         <span>${num ? `<a href="https://wa.me/${num}" target="_blank" rel="noopener">Otevřít chat</a> ` : ''}<button class="ghost" data-del="${i}">Odebrat</button></span>`;
 }
+function bindMgr(){
+  const el = $('mgrPhone'); el.value = state.settings.managerPhone || '';
+  el.addEventListener('input', () => { state.settings.managerPhone = el.value; save(); });
+}
 function renderDrivers(){
   $('driverCards').innerHTML = state.drivers.length ? state.drivers.map((d,i) => {
     return `
@@ -907,14 +970,15 @@ $('addDriver').onclick = () => {
 };
 
 // ---------- záložky ----------
-document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('nav.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
-  $('tab-plan').hidden = b.dataset.tab !== 'plan';
-  $('tab-cars').hidden = b.dataset.tab !== 'cars';
-  $('tab-drivers').hidden = b.dataset.tab !== 'drivers';
-  $('tab-customers').hidden = b.dataset.tab !== 'customers';
+let curTab = 'plan';
+function showTab(tab){
+  curTab = tab;
+  document.querySelectorAll('nav.tabs button').forEach(x => x.setAttribute('aria-selected', String(x.dataset.tab === tab)));
+  ['plan','stav','exp','cars','drivers','customers'].forEach(t => { const el = $('tab-' + t); if (el) el.hidden = t !== tab; });
   window.scrollTo(0, 0);
-}));
+  if (tab === 'stav' || tab === 'exp') refreshRuns();
+}
+document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 $('newDay').onclick = async () => {
   if (!(await ask('Začít nový den? Zruší se zaškrtnutí zákazníků u aut a výsledek, všechna auta začnou linkou 1 a zruší se jim vlastní výjezd. Adresář zákazníků zůstane.', 'Začít nový den'))) return;
   state.vehicles.forEach(v => { v.start = ''; v.nextStart = ''; v.runs = 0; });
@@ -924,7 +988,8 @@ $('newDay').onclick = async () => {
   setStatus('Nový den připraven. U aut zaškrtněte zákazníky první linky.');
 };
 async function deletePlan(){
-  if (!(await ask('Smazat všechny naplánované trasy?', 'Smazat trasy'))) return;
+  if (!(await ask('Smazat všechny naplánované trasy? Odkazy, které řidiči dostali, přestanou platit.', 'Smazat trasy'))) return;
+  for (const r of state.result.routes) if (r.runId) await dropRun(r.runId);
   state.result = null; state.stale = false; save();
   routeLayer.clearLayers(); drawMarkers(); renderResults();
   setStatus('Naplánované trasy jsou smazané.');
@@ -932,8 +997,9 @@ async function deletePlan(){
 async function deleteRoute(k){
   const R = state.result; if (!R || !R.routes[k]) return;
   const v = state.vehicles[k] || { name:'auta' };
-  if (!(await ask(`Smazat trasu ${v.name}?`, 'Smazat trasu'))) return;
-  R.routes[k] = { ...R.routes[k], ids:[], times:[], km:0, travel:0, load:0, back:R.routes[k].start };
+  if (!(await ask(`Smazat trasu ${v.name}? Odkaz, který řidič dostal, přestane platit.`, 'Smazat trasu'))) return;
+  if (R.routes[k].runId) await dropRun(R.routes[k].runId);
+  R.routes[k] = { ...R.routes[k], ids:[], times:[], km:0, travel:0, load:0, back:R.routes[k].start, runId:null, token:null };
   if (!R.routes.some(r => r.ids.length)) state.result = null;
   save(); routeLayer.clearLayers(); drawMarkers(); renderResults(); await drawRoutes();
   setStatus(`Trasa ${v.name} je smazaná.`);
@@ -942,8 +1008,12 @@ async function prepareNext(){
   const R = state.result; if (!R) return;
   if (!(await ask('Připravit další linky? Zaškrtnutí zákazníků se zruší a autům, která jela, se nastaví výjezd podle návratu.', 'Připravit'))) return;
   const reload = +state.settings.reload || 0;
-  R.routes.forEach((r,k) => { const v = state.vehicles[k];
-    if (r.ids.length && v){ v.nextStart = fmt(r.back + reload); v.start = 'z2'; v.runs = (v.runs||0) + 1; } });
+  for (const [k, r] of R.routes.entries()) { const v = state.vehicles[k];
+    if (!r.ids.length || !v) continue;
+    let back = r.back;
+    if (r.runId && window.__sb) { try { const { data } = await window.__sb.from('runs').select('finish').eq('id', r.runId).maybeSingle();
+      if (data && data.finish && data.finish.at) { const d = new Date(data.finish.at); back = d.getHours() * 60 + d.getMinutes(); } } catch(_){} }
+    v.nextStart = fmt(back + reload); v.start = 'z2'; v.runs = (v.runs||0) + 1; }
   state.stops = []; state.result = null; state.stale = false;
   save(); renderVehicles(); renderStops(); drawMarkers(); routeLayer.clearLayers(); renderResults();
   setStatus('Auta, která jela, mají výjezd podle návratu a číslo další linky. U aut, která zatím nejela, zkontrolujte výjezd. Zaškrtněte zákazníky další linky.');
@@ -964,8 +1034,10 @@ function dayLabel(iso){
 function pauseRow(r){
   return `<li class="pause"><span class="t">${fmt(r.breakAt)}<small>–${fmt(r.breakAt + 45)}</small></span><span><span class="who">Povinná pauza 45 min</span></span></li>`;
 }
+function driverUrl(token){ return new URL('ridic.html?r=' + token, location.href).href; }
 function driverMessage(k){
   const R = state.result, r = R.routes[k], v = state.vehicles[k];
+  if (r.token) return `D&D laundry: Linka ${r.linka} – ${v.name} – ${dayLabel(R.date)}, výjezd ${fmt(r.start)}. Tvoje trasa, klece a potvrzování hotelů: ${driverUrl(r.token)}`;
   const byId = Object.fromEntries(state.customers.map(s => [s.id, s]));
   const d = [state.depot.lat, state.depot.lng];
   const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
@@ -993,8 +1065,9 @@ function custGeo(c){
 const DAYS = [['po','Po'],['ut','Út'],['st','St'],['ct','Čt'],['pa','Pá'],['so','So'],['ne','Ne']];
 const DAY_BY_JS = ['ne','po','ut','st','ct','pa','so'];
 const SLOTS = [['e','3:00 – 4:00'],['8','8:00'],['z2','2. závoz']];
-const slotOf = c => c.slot || (Array.isArray(c.slots) && c.slots[0]) || '';
-const slotText = c => (SLOTS.find(([k]) => k === slotOf(c)) || [,''])[1];
+// zákazník může mít nejvýš 2 závozy
+const slotsOf = c => { const a = Array.isArray(c.slots) ? c.slots : (c.slot ? [c.slot] : []); return SLOTS.map(([k]) => k).filter(k => a.includes(k)); };
+const slotText = c => SLOTS.filter(([k]) => slotsOf(c).includes(k)).map(([,l]) => l).join(', ');
 function planDay(){
   const d = state.settings.date; if (!d) return null;
   const [y,m,dd] = d.split('-').map(Number); return DAY_BY_JS[new Date(y, m-1, dd).getDay()];
@@ -1012,7 +1085,7 @@ function renderCustomers(){
         ${DAYS.map(([k,l]) => `<label><input type="checkbox" data-day="${k}" ${(c.days||[]).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
       </div>
       <div class="lic slots c-slots" role="radiogroup" aria-label="Závoz">
-        ${SLOTS.map(([k,l]) => `<label><input type="radio" name="slot-${esc(c.id)}" data-slot="${k}" ${slotOf(c) === k ? 'checked' : ''}>${l}</label>`).join('')}
+        ${SLOTS.map(([k,l]) => `<label><input type="checkbox" data-slot="${k}" ${slotsOf(c).includes(k) ? 'checked' : ''}>${l}</label>`).join('')}
       </div>
       <button class="ghost c-del" data-del aria-label="Odebrat ${esc(c.name || 'zákazníka')}">Odebrat</button>
     </article>`).join('') : '<p class="empty">Nikdo neodpovídá hledání.</p>')
@@ -1024,7 +1097,12 @@ $('custCards').addEventListener('input', e => {
   const c = state.customers[+card.dataset.ci];
   const slot = e.target.dataset.slot;
   if (slot){
-    c.slot = slot; delete c.slots;
+    const set = new Set(slotsOf(c));
+    if (e.target.checked) {
+      if (set.size >= 2) { e.target.checked = false; toast('Zákazník může mít nejvýš 2 závozy. Nejdřív jeden zrušte.'); return; }
+      set.add(slot);
+    } else set.delete(slot);
+    c.slots = SLOTS.map(([k]) => k).filter(k => set.has(k)); delete c.slot;
     save(); renderVehicles(false); return;
   }
   const day = e.target.dataset.day;
@@ -1053,7 +1131,7 @@ $('custCards').addEventListener('click', async e => {
 });
 $('addCustomer').onclick = () => {
   $('custFilter').value = '';
-  state.customers.push({ id:'c'+(uid++), name:'', address:'', demand:1, window:'', kind:'V', note:'', days:[], slot:'', car:'', lat:null, lng:null, label:'' });
+  state.customers.push({ id:'c'+(uid++), name:'', address:'', demand:1, window:'', kind:'V', note:'', days:[], slots:[], car:'', lat:null, lng:null, label:'' });
   save(); renderCustomers(); renderVehicles(false);
   const cards = document.querySelectorAll('#custCards .card'); cards[cards.length-1]?.querySelector('input')?.focus();
 };
@@ -1088,11 +1166,12 @@ $('doImport').onclick = () => {
     const p = parseImportLine(line); if (!p) continue;
     if (/n[aá]zev|ulice/i.test(p.name) && /ulice|adresa/i.test(line)) continue; // záhlaví tabulky
     if (!p.address || !/\d/.test(p.address) && p.address.length < 4) { if (p.name) noAddr.push(p.name); continue; }
-    let days = [], slot = '';
-    for (const r of p.rest){ const sl = parseSlot(r), ds = parseDays(r); if (ds) days = ds; else if (sl) slot = sl; }
+    let days = [], slots = [];
+    for (const r of p.rest){ const ds = parseDays(r); if (ds) { days = ds; continue; }
+      for (const part of r.split(/[,+\/]| a /)) { const sl = parseSlot(part.trim()); if (sl && !slots.includes(sl) && slots.length < 2) slots.push(sl); } }
     const same = c => c.address.trim().toLowerCase() === p.address.toLowerCase() && (c.name||'').trim().toLowerCase() === (p.name||'').toLowerCase();
     if (state.customers.some(same)) { dup++; continue; }
-    state.customers.push({ id:'c'+(uid++), name:p.name, address:p.address, demand:1, window:'', kind:'V', note:'', days, slot, car:'', lat:null, lng:null, label:'' });
+    state.customers.push({ id:'c'+(uid++), name:p.name, address:p.address, demand:1, window:'', kind:'V', note:'', days, slots, car:'', lat:null, lng:null, label:'' });
     added++;
   }
   $('importText').value = ''; $('importBox').hidden = true;
@@ -1260,6 +1339,7 @@ $('plan').onclick = async () => {
     }) };
     const late = sol.routes.map((r,k) => [state.vehicles[k], S.schedule(r.stops, k).back]).filter(([v,b], k) => sol.routes[k].stops.length && b > end);
     const prevRes = state.result || null;
+    const freshK = sol.routes.map((r,k) => r.stops.length ? k : -1).filter(k => k >= 0);
     state.result = {
       road: M.road, start, date: st.date, service,
       routes: sol.routes.map((r,k) => {
@@ -1277,13 +1357,17 @@ $('plan').onclick = async () => {
     // dlaždice „Auta a řidiči na lince“ se po naplánování vynuluje
     state.customers.forEach(c => { c.car = ''; c.order = 0; });
     state.vehicles.forEach(v => { v.driver = ''; v.start = ''; });
+    setStatus('Ukládám linky pro řidiče…');
+    const sync = await syncRuns(st.date, freshK);
     save(); renderVehicles(false);
     drawMarkers(true); renderResults(); await drawRoutes();
     const nu = state.result.unassigned.length;
+    const syncNote = sync.error ? ' Odkazy pro řidiče nejsou k dispozici: v Supabase spusťte aktualizovaný soubor supabase.sql.'
+      : (sync.resent.length ? ` ${sync.resent.join(', ')}: linka už byla odeslána, řidič uvidí upozornění na změnu. Pošlete mu ji znovu.` : '');
     const warns = over.map(([v,sum]) => `${v.name} má zaškrtnuto ${klece(sum)} a uveze ${klece(v.capacity)}`)
       .concat(late.map(([v,b]) => `${v.name} se vrátí až v ${fmt(b)}`));
-    if (warns.length) return setStatus(`Hotovo, ale pozor: ${warns.join('; ')}.`, true);
-    setStatus(nu ? `Hotovo, ale ${nu} zastávek se do tras nevešlo — viz níže.` : (M.road ? 'Hotovo.' : 'Hotovo. Dojezdy jsou jen odhadnuté vzdušnou čarou, silniční data se nepodařilo načíst.'), !!nu);
+    if (warns.length) return setStatus(`Hotovo, ale pozor: ${warns.join('; ')}.` + syncNote, true);
+    setStatus((nu ? `Hotovo, ale ${nu} zastávek se do tras nevešlo — viz níže.` : (M.road ? 'Hotovo.' : 'Hotovo. Dojezdy jsou jen odhadnuté vzdušnou čarou, silniční data se nepodařilo načíst.')) + syncNote, !!nu || !!sync.error);
   } catch(e){
     setStatus(e.message + ' Zkontrolujte připojení k internetu.', true);
   }
@@ -1360,7 +1444,8 @@ function renderResults(){
     else if (!drv) wa = '<span class="note">Přiřaďte autu řidiče, aby šla linka poslat na WhatsApp.</span>';
     else if (!num) wa = `<span class="note">Doplňte řidiči ${esc(drv.name)} platné telefonní číslo.</span>`;
     else if (!hasLicense(drv, v.license)) wa = `<span class="note warn">${esc(drv.name)} nemá oprávnění ${esc(v.license)} pro toto auto. Vyberte jiného řidiče.</span>`;
-    else wa = `<a class="wa" href="https://wa.me/${num}?text=${encodeURIComponent(driverMessage(k))}" target="_blank" rel="noopener">Poslat na WhatsApp – ${esc(drv.name)}</a>`;
+    else wa = `<a class="wa" data-run="${esc(r.runId || '')}" href="https://wa.me/${num}?text=${encodeURIComponent(driverMessage(k))}" target="_blank" rel="noopener">Poslat na WhatsApp – ${esc(drv.name)}</a>`;
+    if (r.token && !state.stale) wa += `<a href="${esc(driverUrl(r.token))}" target="_blank" rel="noopener">Pohled řidiče</a>`;
     html += `<article class="ticket" style="--c:${c}">
       <h3>${esc(v.name)} · linka ${esc(r.linka)}</h3>
       ${drv ? `<div class="driver-line">${esc(drv.name)}</div>` : ''}
@@ -1389,11 +1474,205 @@ function renderResults(){
   box.innerHTML = html;
   $('nextLinka')?.addEventListener('click', prepareNext);
   $('delPlan')?.addEventListener('click', deletePlan);
+  box.querySelectorAll('a.wa[data-run]').forEach(a => a.addEventListener('click', () => { if (a.dataset.run && window.__sb)
+    window.__sb.from('runs').update({ sent_at: new Date().toISOString() }).eq('id', a.dataset.run).then(() => {}, () => {}); }));
   box.querySelectorAll('[data-delroute]').forEach(b => b.addEventListener('click', () => deleteRoute(+b.dataset.delroute)));
 }
 
+// ---------- linky v databázi: plán, Stav, Expedice ----------
+const sbc = () => window.__sb;
+const isExp = () => window.__ROLE === 'expedice';
+function applyRole(){
+  const tabs = document.querySelectorAll('nav.tabs button');
+  if (isExp()) { tabs.forEach(b => b.hidden = !['exp','stav'].includes(b.dataset.tab)); showTab('exp'); }
+  document.documentElement.style.setProperty('--ntabs', [...tabs].filter(b => !b.hidden).length);
+}
+function runPlan(r, k, day){
+  const v = state.vehicles[k], drv = state.drivers.find(d => d.id === r.driver);
+  const byId = Object.fromEntries(state.customers.map(c => [c.id, c]));
+  return { day, linka: r.linka, loader: r.linka > 1 ? 'ridic' : 'expedice',
+    vehicle: { id: v.id, name: v.name, plate: v.plate || '', capacity: +v.capacity || 0, license: v.license || '', color: COLORS[k % COLORS.length] },
+    driver: drv ? { id: drv.id, name: drv.name, phone: drv.phone || '' } : null,
+    managerPhone: state.settings.managerPhone || '',
+    start: Math.round(r.start), back: Math.round(r.back), service: state.result.service ?? 45, breakAt: r.breakAt != null ? Math.round(r.breakAt) : null, breakIdx: r.breakIdx ?? null, km: r.km,
+    stops: r.ids.map((id, i) => { const c = byId[id] || {}; return { id, name: c.name || '', address: c.address || '', lat: c.lat ?? null, lng: c.lng ?? null,
+      begin: r.times[i] ? Math.round(r.times[i].begin) : null, kind: c.kind || 'V', note: c.note || '' }; }) };
+}
+async function syncRuns(day, ks){
+  const out = { error: null, resent: [] }, sb = sbc();
+  if (!sb) return { error: 'offline', resent: [] };
+  for (const k of ks){
+    const r = state.result.routes[k], v = state.vehicles[k]; if (!r || !r.ids.length || !v) continue;
+    try {
+      const plan = runPlan(r, k, day);
+      const { data: ex, error: e1 } = await sb.from('runs').select('id, token, plan_version, sent_at').eq('day', day).eq('vehicle_id', v.id).eq('linka', r.linka).maybeSingle();
+      if (e1) throw e1;
+      if (ex) {
+        const { error } = await sb.from('runs').update({ plan, plan_version: (ex.plan_version || 1) + 1 }).eq('id', ex.id);
+        if (error) throw error;
+        r.runId = ex.id; r.token = ex.token; if (ex.sent_at) out.resent.push(v.name);
+      } else {
+        const { data, error } = await sb.from('runs').insert({ day, vehicle_id: v.id, linka: r.linka, plan }).select('id, token').single();
+        if (error) throw error;
+        r.runId = data.id; r.token = data.token;
+      }
+    } catch(e){ console.error(e); out.error = e.message || String(e); r.runId = null; r.token = null; }
+  }
+  return out;
+}
+async function dropRun(id){ try { await sbc().from('runs').delete().eq('id', id); } catch(_){} }
+
+let runsDay = defaultDay(), runs = [], runsErr = null, runsLoading = false, expCar = null, expRun = null;
+const expDraft = {}, retDraft = {};
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const isToday = () => runsDay === todayISO();
+const timeOfIso = iso => { if (!iso) return ''; const d = new Date(iso); return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; };
+function shiftDay(iso, n){ const [y,m,d] = iso.split('-').map(Number); const t = new Date(y, m-1, d + n);
+  return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
+document.querySelectorAll('.day-nav .dn').forEach(b => b.addEventListener('click', () => { runsDay = shiftDay(runsDay, +b.dataset.dd); expCar = expRun = null; refreshRuns(); }));
+async function refreshRuns(){
+  const sb = sbc(); if (!sb) return;
+  if (runsLoading) return; runsLoading = true;
+  try { const { data, error } = await sb.from('runs').select('*').eq('day', runsDay).order('vehicle_id').order('linka');
+    if (error) throw error; runs = data || []; runsErr = null; }
+  catch(e){ runsErr = e.message || String(e); runs = []; }
+  finally { runsLoading = false; }
+  renderStav(); renderExp();
+}
+let runsSub = false;
+function subscribeRuns(){
+  const sb = sbc(); if (!sb || runsSub) return; runsSub = true;
+  try { sb.channel('runs_changes').on('postgres_changes', { event:'*', schema:'public', table:'runs' }, () => { if (curTab === 'stav' || curTab === 'exp') refreshRuns(); }).subscribe(); } catch(_){}
+}
+setInterval(() => { if ((curTab === 'stav' || curTab === 'exp') && document.visibilityState === 'visible') refreshRuns(); }, 30000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (curTab === 'stav' || curTab === 'exp')) refreshRuns(); });
+
+function runInfo(run){
+  const P = run.plan || {}, st = P.stops || [], pr = run.progress || {}, lc = (run.load && run.load.counts) || {};
+  const done = st.filter(s => pr[s.id]).length, next = st.find(s => !pr[s.id]);
+  let picked = 0, deliv = 0; st.forEach(s => { if (pr[s.id]) { picked += +pr[s.id].picked || 0; deliv += +pr[s.id].delivered || 0; } });
+  const issues = [];
+  st.forEach(s => { const p = pr[s.id]; if (!p) return;
+    if (p.state === 'failed') issues.push(`${timeOfIso(p.at)} ${s.name}: nešlo doručit – ${p.reason || 'bez důvodu'}`);
+    else if (+p.delivered !== +(lc[s.id] || 0)) issues.push(`${timeOfIso(p.at)} ${s.name}: předal ${+p.delivered || 0} z ${+(lc[s.id] || 0)} – ${p.reason || 'bez důvodu'}`); });
+  (run.problems || []).forEach(p => issues.push(`${timeOfIso(p.at)} hlášení řidiče: ${p.text}`));
+  if (run.finish) {
+    if (+run.finish.unloaded !== +run.finish.expected) issues.push(`Vykládka: vyloženo ${run.finish.unloaded}, podle hotelů ${run.finish.expected} – ${run.finish.reason || ''}`);
+    if (+run.finish.leftClean) issues.push(`Na autě zůstalo ${klece(run.finish.leftClean)} čistého prádla`);
+  }
+  if (run.receive && +run.receive.count !== +(run.finish ? run.finish.unloaded : run.receive.count)) issues.push(`Převzetí: expedice převzala ${run.receive.count}, řidič vyložil ${run.finish.unloaded} – ${run.receive.reason || ''}`);
+  if (run.load && P.stops) { const ids = new Set(st.map(s => s.id)); Object.keys(lc).filter(id => !ids.has(id) && +lc[id]).forEach(id => issues.push(`Hotel odebrán z linky po nakládce – na autě ${klece(lc[id])} navíc`)); }
+  let delay = 0;
+  if (isToday() && run.load && next && !run.finish && next.begin != null) { const d = Math.round(nowMin() - next.begin); if (d > 10) delay = d; }
+  const notLoadedLate = !run.load && isToday() && P.start != null && nowMin() >= P.start - 30;
+  return { P, st, done, next, picked, deliv, issues, delay, notLoadedLate };
+}
+
+function renderStav(){
+  const box = $('stavBody'); if (!box) return;
+  document.querySelectorAll('.dn-day').forEach(h => h.textContent = dayLabel(runsDay) + (isToday() ? ' · dnes' : ''));
+  if (runsErr) { box.innerHTML = `<p class="warnbar">Přehled není k dispozici. V Supabase spusťte aktualizovaný soubor supabase.sql (SQL Editor → Run).</p>`; return; }
+  if (!runs.length) { box.innerHTML = `<p class="empty">Na tento den nejsou naplánované žádné linky.</p>`; return; }
+  const list = runs.slice().sort((a,b) => ((a.plan||{}).start ?? 0) - ((b.plan||{}).start ?? 0) || a.linka - b.linka);
+  box.innerHTML = list.map(run => {
+    const I = runInfo(run), P = I.P, color = (P.vehicle && P.vehicle.color) || '#888';
+    const pct = I.st.length ? Math.round(I.done / I.st.length * 100) : 0;
+    let badge;
+    if (run.finish) badge = '<span class="badge ok">dokončeno</span>';
+    else if (!run.load) badge = I.notLoadedLate ? '<span class="badge err">nenaloženo</span>' : '<span class="badge wait">čeká na nakládku</span>';
+    else if (I.delay) badge = `<span class="badge warn">zpoždění ${I.delay} min</span>`;
+    else if (I.done) badge = '<span class="badge ok">podle plánu</span>';
+    else badge = '<span class="badge wait">naloženo</span>';
+    const loadLine = run.load ? (run.load.by === 'expedice' ? `Naložila expedice v ${timeOfIso(run.load.at)}` : `Naložil řidič v ${timeOfIso(run.load.at)}${run.load.fallback ? ' – bez expedice' : ''}`)
+      : (P.loader === 'ridic' ? `Nakládá řidič sám${run.prep ? ' · expedice připravila klece' : ''}` : `Nakládá expedice · výjezd ${fmt(P.start)}`);
+    const nowLine = run.finish ? `V prádelně od ${timeOfIso(run.finish.at)} · vyzvednuto ${I.picked}, vyloženo ${run.finish.unloaded}${run.receive ? ` · převzato ${run.receive.count}` : ''}`
+      : (run.load && I.next ? `Teď jede na: <b>${esc(I.next.name)}</b> (plán ${fmt(I.next.begin)})` : (run.load ? 'Vrací se do prádelny' : ''));
+    const tel = P.driver && P.driver.phone ? waNumber(P.driver.phone) : null;
+    return `<article class="op-card">
+      <h3><span class="sw" style="background:${esc(color)}"></span>${esc((P.vehicle||{}).name || '')} · linka ${esc(run.linka)}<span class="right">${esc((P.driver||{}).name || 'bez řidiče')}</span></h3>
+      <div class="prog" aria-hidden="true"><i style="width:${pct}%; background:${esc(color)}"></i></div>
+      <div class="st-line"><span>Hotovo <b>${I.done} z ${I.st.length}</b></span>${badge}</div>
+      <div class="op-meta">${loadLine}${run.load && run.load.fallback ? ' <span class="badge warn">bez kontroly expedice</span>' : ''}</div>
+      ${nowLine ? `<div>${nowLine}</div>` : ''}
+      ${I.issues.length ? `<div class="issues"><strong>Hlášení a nesrovnalosti</strong><ul>${I.issues.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+      <div class="op-actions">${tel ? `<a href="tel:+${tel}">Zavolat řidiči</a>` : ''}${isExp() ? '' : `<a href="${esc(driverUrl(run.token))}" target="_blank" rel="noopener">Pohled řidiče</a>`}</div>
+    </article>`; }).join('');
+}
+
+function renderExp(){
+  const box = $('expBody'); if (!box) return;
+  document.querySelectorAll('.dn-day').forEach(h => h.textContent = dayLabel(runsDay) + (isToday() ? ' · dnes' : ''));
+  if (runsErr) { box.innerHTML = `<p class="warnbar">Expedice není k dispozici. V Supabase spusťte aktualizovaný soubor supabase.sql (SQL Editor → Run).</p>`; return; }
+  if (!runs.length) { box.innerHTML = `<p class="empty">Na tento den nejsou naplánované žádné linky.</p>`; return; }
+  const cars = []; runs.forEach(r => { if (!cars.some(c => c.id === r.vehicle_id)) cars.push({ id: r.vehicle_id, name: ((r.plan||{}).vehicle||{}).name || r.vehicle_id }); });
+  if (!expCar || !cars.some(c => c.id === expCar)) { const urgent = runs.find(r => !r.load && (r.plan||{}).loader === 'expedice'); expCar = urgent ? urgent.vehicle_id : cars[0].id; }
+  const mine = runs.filter(r => r.vehicle_id === expCar);
+  if (!expRun || !mine.some(r => r.id === expRun)) { const open = mine.find(r => !r.load || (r.finish && !r.receive)); expRun = (open || mine[0]).id; }
+  const run = mine.find(r => r.id === expRun), P = run.plan || {}, st = P.stops || [];
+  const alertCar = id => runs.some(r => r.vehicle_id === id && ((!r.load && (r.plan||{}).loader === 'expedice') || (r.finish && !r.receive)));
+  const isLoadRun = P.loader !== 'ridic';
+  const base = (isLoadRun ? (run.load && run.load.counts) : ((run.load && run.load.counts) || (run.prep && run.prep.counts))) || {};
+  const draft = expDraft[run.id] || (expDraft[run.id] = Object.fromEntries(st.map(s => [s.id, base[s.id] != null ? +base[s.id] : 0])));
+  st.forEach(s => { if (draft[s.id] == null) draft[s.id] = 0; });
+  const sum = st.reduce((a, s) => a + (+draft[s.id] || 0), 0), cap = +((P.vehicle||{}).capacity) || 0;
+  const driverLoaded = !isLoadRun && run.load;
+  const lc = (run.load && run.load.counts) || {};
+  const removed = run.load ? Object.keys(lc).filter(id => !st.some(s => s.id === id) && +lc[id]) : [];
+  let status = '';
+  if (run.load) status = `<div class="okbar">Naloženo v ${timeOfIso(run.load.at)} · ${run.load.by === 'expedice' ? 'expedice' : 'řidič'}${run.load.fallback ? ' (bez expedice)' : ''}</div>`;
+  else if (!isLoadRun && run.prep) status = `<div class="infobar">Klece připravené v ${timeOfIso(run.prep.at)}. Řidič si linku naloží sám a počty zkontroluje.</div>`;
+  else if (!isLoadRun) status = `<div class="infobar">Tuto linku si řidič naloží sám. Můžete mu dopředu připravit počty klecí.</div>`;
+  else if (isToday() && P.start != null && nowMin() >= P.start - 30) status = `<div class="warnbar"><b>Výjezd v ${fmt(P.start)}</b> – linka ještě není naložená.</div>`;
+  const ret = run.finish ? (() => {
+    const rd = retDraft[run.id] ?? (run.receive ? +run.receive.count : +run.finish.unloaded);
+    return `<div class="ret"><h3>Převzetí po návratu</h3>
+      <p class="op-meta">Řidič vyložil ${klece(run.finish.unloaded)} v ${timeOfIso(run.finish.at)} (podle hotelů ${run.finish.expected})${+run.finish.leftClean ? ` · na autě zůstalo ${klece(run.finish.leftClean)} čistého prádla` : ''}.</p>
+      ${run.receive ? `<div class="okbar">Převzato ${klece(run.receive.count)} v ${timeOfIso(run.receive.at)}.</div>` : `
+      <div class="ld-row"><span class="nm">Převzato špinavých klecí</span><button data-rm aria-label="Méně">−</button><span class="v">${rd}</span><button data-rp aria-label="Více">+</button></div>
+      ${rd !== +run.finish.unloaded ? `<label>Proč nesedí počet? (povinné)<input id="retReason"></label>` : ''}
+      <button class="primary big-btn" id="retOk">Potvrdit převzetí</button>`}</div>`; })() : '';
+  box.innerHTML = `
+    <div class="chips" role="group" aria-label="Auto">${cars.map(c => `<button aria-pressed="${c.id === expCar}" data-car="${esc(c.id)}">${esc(c.name)}${alertCar(c.id) ? '<span class="dot-alert" aria-label="vyžaduje akci"></span>' : ''}</button>`).join('')}</div>
+    ${mine.length > 1 ? `<div class="chips" role="group" aria-label="Linka">${mine.map(r => `<button aria-pressed="${r.id === expRun}" data-run="${esc(r.id)}">Linka ${esc(r.linka)}</button>`).join('')}</div>` : ''}
+    <article class="op-card">
+      <h3>Linka ${esc(run.linka)} · ${isLoadRun ? 'nakládka' : 'příprava klecí pro řidiče'}<span class="right">výjezd ${fmt(P.start)}</span></h3>
+      <div class="op-meta">${esc((P.driver||{}).name || 'bez řidiče')}${cap ? ` · kapacita ${klece(cap)}` : ''}</div>
+      ${status}
+      ${removed.length ? `<div class="warnbar">Po nakládce odebráno z linky: ${klece(removed.reduce((a,id) => a + +lc[id], 0))} – vyložit z auta.</div>` : ''}
+      <div>${st.map((s,i) => `<div class="ld-row"><span class="nm">${i+1}. ${esc(s.name || s.address)}${run.load && isLoadRun && lc[s.id] == null ? '<small>přidán po nakládce – doplňte klece</small>' : ''}</span>
+        ${driverLoaded ? `<span class="v">${+lc[s.id] || 0}</span>` : `<button data-m="${esc(s.id)}" aria-label="${esc(s.name)} méně">−</button><span class="v">${draft[s.id]}</span><button data-p="${esc(s.id)}" aria-label="${esc(s.name)} více">+</button>`}</div>`).join('')}</div>
+      <div class="ld-sum"><span>Celkem na autě</span><span><b>${driverLoaded ? Object.values(lc).reduce((a,b) => a + +b, 0) : sum}</b>${cap ? ` z ${cap}` : ''}</span></div>
+      ${!driverLoaded && cap && sum > cap ? `<div class="warnbar">Auto uveze nejvýš ${klece(cap)}.</div>` : ''}
+      ${driverLoaded ? '' : `<button class="primary big-btn" id="expSave" ${sum ? '' : 'disabled'}>${isLoadRun ? (run.load ? 'Uložit opravu nakládky' : 'Potvrdit nakládku') : 'Uložit připravené klece'}</button>`}
+      ${ret}
+    </article>`;
+  box.querySelectorAll('[data-car]').forEach(b => b.onclick = () => { expCar = b.dataset.car; expRun = null; renderExp(); });
+  box.querySelectorAll('[data-run]').forEach(b => b.onclick = () => { expRun = b.dataset.run; renderExp(); });
+  box.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { draft[b.dataset.m] = Math.max(0, draft[b.dataset.m] - 1); renderExp(); });
+  box.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { draft[b.dataset.p]++; renderExp(); });
+  if ($('expSave')) $('expSave').onclick = async () => {
+    $('expSave').disabled = true;
+    const who = window.__USER_EMAIL || '', at = new Date().toISOString(), counts = { ...draft };
+    const patch = isLoadRun ? { load: { by:'expedice', at, user: who, counts } } : { prep: { at, user: who, counts } };
+    const { error } = await sbc().from('runs').update(patch).eq('id', run.id);
+    if (error) { toast('Nepodařilo se uložit: ' + error.message); $('expSave').disabled = false; return; }
+    delete expDraft[run.id]; toast(isLoadRun ? 'Nakládka potvrzena. Řidič uvidí počty klecí.' : 'Připravené klece uloženy.'); refreshRuns();
+  };
+  box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { retDraft[run.id] = Math.max(0, (retDraft[run.id] ?? +run.finish.unloaded) - 1); renderExp(); });
+  box.querySelectorAll('[data-rp]').forEach(b => b.onclick = () => { retDraft[run.id] = (retDraft[run.id] ?? +run.finish.unloaded) + 1; renderExp(); });
+  if ($('retOk')) $('retOk').onclick = async () => {
+    const count = retDraft[run.id] ?? +run.finish.unloaded, reason = $('retReason') ? $('retReason').value.trim() : '';
+    if (count !== +run.finish.unloaded && !reason) { $('retReason').focus(); toast('Napište, proč počet nesedí.'); return; }
+    $('retOk').disabled = true;
+    const { error } = await sbc().from('runs').update({ receive: { count, reason, at: new Date().toISOString(), user: window.__USER_EMAIL || '' } }).eq('id', run.id);
+    if (error) { toast('Nepodařilo se uložit: ' + error.message); $('retOk').disabled = false; return; }
+    delete retDraft[run.id]; toast('Převzetí potvrzeno.'); refreshRuns();
+  };
+}
+subscribeRuns();
+
 // ---------- start ----------
-bindSettings(); renderDrivers(); renderVehicles(); renderCustomers(); drawMarkers(true); renderResults(); drawRoutes();
+bindSettings(); bindMgr(); renderDrivers(); renderVehicles(); renderCustomers(); applyRole(); drawMarkers(true); renderResults(); drawRoutes();
 </script>
 <script>
 (() => {
@@ -1431,7 +1710,7 @@ bindSettings(); renderDrivers(); renderVehicles(); renderCustomers(); drawMarker
   }
 
   window.__persist = (getter) => {
-    if (conflict) return;
+    if (conflict || window.__ROLE === 'expedice') return;
     pending = getter; clearTimeout(timer); timer = setTimeout(flush, 600);
   };
   async function flush(){
@@ -1464,6 +1743,7 @@ bindSettings(); renderDrivers(); renderVehicles(); renderCustomers(); drawMarker
 
   function startApp(row){
     version = row.version || 1;
+    window.__sb = sb; window.__USER_EMAIL = user.email || '';
     const d = row.data || {};
     window.__BOOT = { state: d.state || null, geo: d.geo || {} };
     const sc = document.createElement('script'); sc.textContent = $('appScript').textContent; document.body.appendChild(sc);
@@ -1475,6 +1755,8 @@ bindSettings(); renderDrivers(); renderVehicles(); renderCustomers(); drawMarker
 
   async function afterLogin(){
     msg('Načítám data…');
+    window.__ROLE = 'vedouci';
+    try { const { data, error } = await sb.from('user_roles').select('role').maybeSingle(); if (!error && data && data.role) window.__ROLE = data.role; } catch(_){}
     startApp(await load());
   }
 
