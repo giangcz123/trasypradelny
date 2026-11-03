@@ -71,10 +71,12 @@ create table if not exists public.runs (
   finish       jsonb,                                -- návrat a vykládka
   receive      jsonb,                                -- převzetí klecí expedicí
   sent_at      timestamptz,
+  sms          jsonb,                                -- stav poslední SMS řidiči
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
   unique (day, vehicle_id, linka)
 );
+alter table public.runs add column if not exists sms jsonb;  -- pro starší databáze
 alter table public.runs enable row level security;
 revoke all on public.runs from anon;
 grant select, insert, update, delete on public.runs to authenticated;

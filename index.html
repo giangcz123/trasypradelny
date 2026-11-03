@@ -91,6 +91,9 @@ button:disabled{opacity:.55; cursor:progress}
 .vehicle:first-child{border-top:0}
 .vehicle .swatch{align-self:center; margin-bottom:.6rem}
 .driver{display:grid; grid-template-columns:1fr 1fr auto; gap:.5rem; align-items:end; margin-bottom:.45rem}
+.sms-ok{color:#0B5E49; font-weight:600; font-size:.88rem; align-self:center}
+.wa-alt{align-self:center; font-size:.88rem}
+button.wa{border:0; font:inherit; font-weight:700; cursor:pointer}
 .wa{display:inline-block; background:var(--wa); color:var(--wa-ink) !important; text-decoration:none; font-weight:700;
   border-radius:6px; padding:.45rem .8rem; font-stretch:110%}
 .wa:hover{filter:brightness(1.08)}
@@ -1425,7 +1428,7 @@ function renderResults(){
   html += `<div class="summary"><div><strong>${totKm.toFixed(0)} km</strong> <span>celkem</span></div>
     <div><strong>${fmtDur(totT)}</strong> <span>čisté jízdy</span></div>
     <div><strong>${used.length} z ${R.routes.length}</strong> <span>aut vyjíždí</span></div></div>
-    <div class="row-actions res"><button onclick="window.print()">Vytisknout listy pro řidiče</button>
+    <div class="row-actions res">${!state.stale && R.routes.some(r => r.ids.length && r.runId) ? '<button id="smsAll" class="primary">Poslat SMS všem řidičům</button>' : ''}<button onclick="window.print()">Vytisknout listy pro řidiče</button>
       <button id="nextLinka" ${state.stale ? 'disabled' : ''}>Připravit další linky</button>
       <button id="delPlan" class="ghost danger">Smazat naplánované trasy</button></div>`;
   html += '<div class="tickets">';
@@ -1444,7 +1447,13 @@ function renderResults(){
     else if (!drv) wa = '<span class="note">Přiřaďte autu řidiče, aby šla linka poslat na WhatsApp.</span>';
     else if (!num) wa = `<span class="note">Doplňte řidiči ${esc(drv.name)} platné telefonní číslo.</span>`;
     else if (!hasLicense(drv, v.license)) wa = `<span class="note warn">${esc(drv.name)} nemá oprávnění ${esc(v.license)} pro toto auto. Vyberte jiného řidiče.</span>`;
-    else wa = `<a class="wa" data-run="${esc(r.runId || '')}" href="https://wa.me/${num}?text=${encodeURIComponent(driverMessage(k))}" target="_blank" rel="noopener">Poslat na WhatsApp – ${esc(drv.name)}</a>`;
+    else {
+      const waLink = `href="https://wa.me/${num}?text=${encodeURIComponent(driverMessage(k))}" target="_blank" rel="noopener"`;
+      wa = r.runId
+        ? `<button class="wa" data-sms="${k}">${r.sms && r.sms.ok ? 'Poslat SMS znovu' : 'Poslat SMS'} – ${esc(drv.name)}</button><a class="wa-alt" data-run="${esc(r.runId)}" ${waLink}>nebo přes WhatsApp</a>`
+        : `<a class="wa" data-run="" ${waLink}>Poslat na WhatsApp – ${esc(drv.name)}</a>`;
+      if (r.sms) wa += r.sms.ok ? `<span class="sms-ok">SMS odeslána v ${esc(timeOfIso(r.sms.at))}</span>` : `<span class="note warn">SMS se nepodařilo odeslat: ${esc(r.sms.error || '')}</span>`;
+    }
     if (r.token && !state.stale) wa += `<a href="${esc(driverUrl(r.token))}" target="_blank" rel="noopener">Pohled řidiče</a>`;
     html += `<article class="ticket" style="--c:${c}">
       <h3>${esc(v.name)} · linka ${esc(r.linka)}</h3>
@@ -1474,7 +1483,9 @@ function renderResults(){
   box.innerHTML = html;
   $('nextLinka')?.addEventListener('click', prepareNext);
   $('delPlan')?.addEventListener('click', deletePlan);
-  box.querySelectorAll('a.wa[data-run]').forEach(a => a.addEventListener('click', () => { if (a.dataset.run && window.__sb)
+  $('smsAll')?.addEventListener('click', () => sendSms(R.routes.map((r,k) => k).filter(k => R.routes[k].ids.length && R.routes[k].runId)));
+  box.querySelectorAll('[data-sms]').forEach(b => b.addEventListener('click', () => sendSms([+b.dataset.sms])));
+  box.querySelectorAll('a[data-run]').forEach(a => a.addEventListener('click', () => { if (a.dataset.run && window.__sb)
     window.__sb.from('runs').update({ sent_at: new Date().toISOString() }).eq('id', a.dataset.run).then(() => {}, () => {}); }));
   box.querySelectorAll('[data-delroute]').forEach(b => b.addEventListener('click', () => deleteRoute(+b.dataset.delroute)));
 }
@@ -1519,6 +1530,30 @@ async function syncRuns(day, ks){
     } catch(e){ console.error(e); out.error = e.message || String(e); r.runId = null; r.token = null; }
   }
   return out;
+}
+async function sendSms(ks){
+  const R = state.result; if (!R) return;
+  const list = ks.map(k => [k, R.routes[k]]).filter(([k, r]) => r && r.ids.length && r.runId);
+  if (!list.length) { toast('Není co odeslat. Nejdřív naplánujte trasy.'); return; }
+  const names = list.map(([k, r]) => { const d = state.drivers.find(x => x.id === r.driver); return `${d ? d.name : 'bez řidiče'} (${state.vehicles[k] ? state.vehicles[k].name : ''})`; });
+  if (!(await ask(`Poslat SMS s odkazem na linku: ${names.join(', ')}?`, 'Poslat SMS'))) return;
+  setStatus('Posílám SMS…');
+  let data = null, msg = '';
+  try {
+    const out = await sbc().functions.invoke('send-sms', { body: { run_ids: list.map(([, r]) => r.runId) } });
+    data = out.data;
+    if (out.error) { msg = out.error.message || ''; try { if (out.error.context && out.error.context.json) { const b = await out.error.context.json(); if (b && b.error) msg = b.error; } } catch(_){} }
+  } catch(e){ msg = e.message || String(e); }
+  if (!data || data.error || !Array.isArray(data.results)) {
+    msg = (data && data.error) || msg;
+    const notDeployed = /failed to send|not found|404|fetch/i.test(msg) && !/SMS brána|BULKGATE/i.test(msg);
+    setStatus('SMS se nepodařilo odeslat. ' + (notDeployed ? 'Serverová funkce send-sms zatím není v Supabase nasazená (postup je v návodu).' : msg), true);
+    return;
+  }
+  for (const res of data.results) { const r = R.routes.find(x => x.runId === res.id); if (r) r.sms = res; }
+  save(); renderResults();
+  const bad = data.results.filter(x => !x.ok);
+  setStatus(bad.length ? `Odesláno ${data.results.length - bad.length} z ${data.results.length}. Neodešlo: ${bad.map(b => `${b.to || 'linka'} – ${b.error}`).join('; ')}` : (data.results.length === 1 ? 'SMS odeslána.' : `SMS odeslány všem řidičům (${data.results.length}).`), !!bad.length);
 }
 async function dropRun(id){ try { await sbc().from('runs').delete().eq('id', id); } catch(_){} }
 
