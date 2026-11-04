@@ -42,7 +42,8 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
   try {
-    const appId = Deno.env.get('BULKGATE_APP_ID'), appToken = Deno.env.get('BULKGATE_APP_TOKEN');
+    const clean = (v) => String(v || '').trim().replace(/^["']+|["']+$/g, '').trim();  // bez mezer a uvozovek navíc
+    const appId = clean(Deno.env.get('BULKGATE_APP_ID')), appToken = clean(Deno.env.get('BULKGATE_APP_TOKEN'));
     if (!appId || !appToken) return json({ error: 'Chybí přístupové údaje k SMS bráně (BULKGATE_APP_ID, BULKGATE_APP_TOKEN).' }, 500);
     const appUrl = Deno.env.get('APP_URL') || 'https://giangcz123.github.io/trasypradelny/';
     const sender = Deno.env.get('SMS_SENDER') || '';
