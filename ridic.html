@@ -133,8 +133,11 @@ svg{flex:none}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (() => {
-const SUPABASE_URL = 'https://srzgttvkaenisqnpxzuw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_sLzlTYwp6qs-fCaaeMLIhQ_NZpULi24';
+const IS_TEST = /\/test\//.test(location.pathname);
+const TEST_URL = '', TEST_KEY = '';   // testovací projekt Supabase
+const SUPABASE_URL = IS_TEST ? TEST_URL : 'https://srzgttvkaenisqnpxzuw.supabase.co';
+const SUPABASE_KEY = IS_TEST ? TEST_KEY : 'sb_publishable_sLzlTYwp6qs-fCaaeMLIhQ_NZpULi24';
+if (IS_TEST) { const b = document.createElement('div'); b.textContent = 'TEST'; b.style.cssText = 'background:#B42318;color:#fff;text-align:center;font-weight:700;font-size:12px;padding:3px'; document.body.prepend(b); }
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = m => { if (m == null || isNaN(m)) return ''; m = Math.round(m); return `${Math.floor(m/60) % 24}:${String(m%60).padStart(2,'0')}`; };
@@ -310,7 +313,7 @@ function toast(t){ const el = $('toast'); el.textContent = t; el.hidden = false;
 
 $('app').innerHTML = `<div class="center"><p>${esc(T('loading'))}</p></div>`;
 const token = new URLSearchParams(location.search).get('r');
-if (!token || !window.supabase) { $('app').innerHTML = `<div class="center"><div><h1>${T('badLink')}</h1><p class="note">${T('badLinkNote')}</p></div></div>`; return; }
+if (!token || !window.supabase || !SUPABASE_URL) { $('app').innerHTML = `<div class="center"><div><h1>${T('badLink')}</h1><p class="note">${T('badLinkNote')}</p></div></div>`; return; }
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession:false } });
 
 let run = null, sel = null, busy = false, sheetOpen = false;

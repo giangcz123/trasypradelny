@@ -37,6 +37,15 @@ body.locked > :not(#lock):not(script){display:none !important}
 .lock-msg{min-height:1.2em; margin:0; color:var(--err); font-size:.9rem}
 .lock-card button.primary{padding:.65rem}
 #lockNow{margin-left:.25rem}
+.test-banner{background:#B42318; color:#fff; text-align:center; font-weight:700; font-size:.8rem; padding:.3rem .5rem; letter-spacing:.02em}
+#usersBtn{margin-left:auto}
+#usersBtn[aria-pressed="true"]{color:var(--blue); font-weight:700}
+.user-card{display:grid; gap:.5rem}
+.user-card .u-head{display:flex; flex-wrap:wrap; gap:.25rem .6rem; align-items:baseline}
+.user-card .u-row{display:flex; flex-wrap:wrap; gap:.5rem; align-items:center}
+.user-card .u-role{display:flex; align-items:center; gap:.4rem; margin:0}
+.user-card .u-role select{width:auto}
+.user-card .u-row input{flex:1; min-width:12rem}
 .sync-bar{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:900; background:var(--ink); color:var(--bg);
   padding:.6rem .9rem; border-radius:8px; display:flex; gap:.75rem; align-items:center; max-width:calc(100% - 32px); box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .sync-bar button{background:var(--surface); color:var(--ink); border:0}
@@ -299,7 +308,8 @@ button.danger:hover{border-color:var(--err)}
   header.top{position:sticky; top:0; z-index:500; padding:.55rem 1rem; gap:.5rem; flex-wrap:nowrap}
   header.top h1{font-size:1.15rem; white-space:nowrap}
   header.top > p, #whoami{display:none}
-  #lockNow{margin-left:auto; padding:.35rem .5rem}
+  #usersBtn{margin-left:auto; padding:.35rem .5rem}
+  #lockNow{margin-left:0; padding:.35rem .5rem}
   nav.tabs{position:fixed; left:0; right:0; bottom:0; z-index:600; margin:0; gap:0; background:var(--surface);
     border-top:1px solid var(--line); padding:0 0 env(safe-area-inset-bottom); display:grid; grid-template-columns:repeat(var(--ntabs,6),1fr)}
   nav.tabs button{padding:.85rem .1rem .8rem; border-bottom:0; border-top:3px solid transparent; font-size:.78rem; font-stretch:90%}
@@ -387,6 +397,7 @@ body.locked{padding-bottom:0}
     <button role="tab" data-tab="customers" aria-selected="false">Zákazníci</button>
   </nav>
   <span id="whoami" class="note" style="margin-left:.75rem"></span>
+  <button id="usersBtn" class="ghost" title="Správa uživatelů">Uživatelé</button>
   <button id="lockNow" class="ghost" title="Odhlásit se">Odhlásit</button>
 </header>
 
@@ -404,6 +415,21 @@ body.locked{padding-bottom:0}
     <input id="mgrPhone" type="tel" placeholder="+420 …"></div>
   <div id="driverCards" class="cards"></div>
   <div class="row-actions"><button id="addDriver">Přidat řidiče</button></div>
+</section>
+
+<section id="tab-users" class="registry" role="tabpanel" hidden>
+  <h2>Uživatelé</h2>
+  <p class="lead">Kdo se může přihlásit do aplikace. Vedoucí vidí všechno, expedice jen kartu Expedice. Řidiči účet nepotřebují – linku otevírají z odkazu v SMS.</p>
+  <form id="userAdd" class="card" autocomplete="off">
+    <h3 style="margin:0 0 .5rem">Přidat uživatele</h3>
+    <div class="grid2">
+      <div><label for="uLogin">Přihlašovací jméno</label><input id="uLogin" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="např. petr" required></div>
+      <div><label for="uPw">Heslo (aspoň 6 znaků)</label><input id="uPw" type="text" autocomplete="new-password" minlength="6" required></div>
+      <div><label for="uRole">Role</label><select id="uRole"><option value="vedouci">Vedoucí</option><option value="expedice">Expedice</option></select></div>
+      <div style="align-self:end"><button class="primary" type="submit" id="uAddBtn" style="width:100%">Přidat uživatele</button></div>
+    </div>
+  </form>
+  <div id="usersBody"></div>
 </section>
 
 <section id="tab-stav" class="registry" role="tabpanel" hidden>
@@ -1041,9 +1067,11 @@ let curTab = 'plan';
 function showTab(tab){
   curTab = tab;
   document.querySelectorAll('nav.tabs button').forEach(x => x.setAttribute('aria-selected', String(x.dataset.tab === tab)));
-  ['plan','stav','exp','cars','drivers','customers'].forEach(t => { const el = $('tab-' + t); if (el) el.hidden = t !== tab; });
+  ['plan','stav','exp','cars','drivers','customers','users'].forEach(t => { const el = $('tab-' + t); if (el) el.hidden = t !== tab; });
+  $('usersBtn').setAttribute('aria-pressed', String(tab === 'users'));
   window.scrollTo(0, 0);
   if (tab === 'stav' || tab === 'exp') refreshRuns();
+  if (tab === 'users') loadUsers();
 }
 document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 $('newDay').onclick = async () => {
@@ -1580,7 +1608,7 @@ const sbc = () => window.__sb;
 const isExp = () => window.__ROLE === 'expedice';
 function applyRole(){
   const tabs = document.querySelectorAll('nav.tabs button');
-  if (isExp()) { tabs.forEach(b => b.hidden = b.dataset.tab !== 'exp'); showTab('exp'); }
+  if (isExp()) { tabs.forEach(b => b.hidden = b.dataset.tab !== 'exp'); $('usersBtn').hidden = true; showTab('exp'); }
   document.documentElement.style.setProperty('--ntabs', [...tabs].filter(b => !b.hidden).length);
 }
 function runPlan(r, k, day){
@@ -1799,14 +1827,95 @@ function renderExp(){
 }
 subscribeRuns();
 
+// ---------- správa uživatelů (serverová funkce manage-users) ----------
+async function callFn(name, body){
+  let data = null, msg = '';
+  try {
+    const out = await sbc().functions.invoke(name, { body });
+    data = out.data;
+    if (out.error) { msg = out.error.message || ''; try { if (out.error.context && out.error.context.json) { const b = await out.error.context.json(); if (b && (b.error || b.message || b.msg)) msg = b.error || b.message || b.msg; } } catch(_){} }
+  } catch(e){ msg = e.message || String(e); }
+  if (data && !data.error && !msg) return { data };
+  msg = (data && data.error) || msg || 'Neznámá chyba.';
+  if (/not found|404/i.test(msg) && !/Uživatel/.test(msg)) msg = `V Supabase zatím není funkce ${name} – nasaďte ji podle návodu (Edge Functions → Deploy a new function).`;
+  else if (/failed to send|failed to fetch|networkerror|load failed/i.test(msg)) msg = `Funkce ${name} neodpověděla. Zkontrolujte internet, případně v Supabase Edge Functions → ${name} → Logs. (${msg})`;
+  return { error: msg };
+}
+let usersList = null, usersErr = '', pwOpen = null;
+async function loadUsers(){
+  if (!sbc()) return;
+  if (!usersList) $('usersBody').innerHTML = '<p class="note">Načítám uživatele…</p>';
+  const r = await callFn('manage-users', { action:'list' });
+  usersErr = r.error || ''; if (!r.error) usersList = r.data.users || [];
+  renderUsers();
+}
+function renderUsers(){
+  const box = $('usersBody'); if (!box) return;
+  if (usersErr && !usersList) { box.innerHTML = `<p class="warnbar">${esc(usersErr)}</p>`; return; }
+  const ROLE = { vedouci:'Vedoucí', expedice:'Expedice' };
+  box.innerHTML = (usersErr ? `<p class="warnbar">${esc(usersErr)}</p>` : '') + `<div class="cards">${(usersList || []).map(u => `
+    <article class="card user-card" data-uid="${esc(u.id)}">
+      <div class="u-head"><strong>${esc(u.login)}</strong>${u.me ? ' <span class="note">(vy)</span>' : ''}
+        <span class="note">${u.last ? 'naposledy přihlášen ' + esc(new Date(u.last).toLocaleDateString('cs-CZ')) : 'zatím se nepřihlásil'}</span></div>
+      <div class="u-row">
+        <label class="u-role">Role <select data-urole="${esc(u.id)}" ${u.me ? 'disabled title="Vlastní roli změnit nejde"' : ''}>${Object.entries(ROLE).map(([k,n]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <button class="ghost" data-upw="${esc(u.id)}">Nové heslo</button>
+        ${u.me ? '' : `<button class="ghost danger" data-udel="${esc(u.id)}">Odebrat</button>`}
+      </div>
+      ${pwOpen === u.id ? `<div class="u-row"><input type="text" id="pw_${esc(u.id)}" placeholder="Nové heslo (aspoň 6 znaků)" autocomplete="new-password"><button class="primary" data-upwsave="${esc(u.id)}">Uložit heslo</button></div>` : ''}
+    </article>`).join('')}</div>`;
+  if (pwOpen && $('pw_' + pwOpen)) $('pw_' + pwOpen).focus();
+}
+$('usersBtn').onclick = () => showTab('users');
+$('userAdd').addEventListener('submit', async e => {
+  e.preventDefault();
+  const login = $('uLogin').value.trim(), password = $('uPw').value, role = $('uRole').value;
+  if (password.length < 6) { toast('Heslo musí mít aspoň 6 znaků.'); $('uPw').focus(); return; }
+  $('uAddBtn').disabled = true;
+  const r = await callFn('manage-users', { action:'create', login, password, role });
+  $('uAddBtn').disabled = false;
+  if (r.error) { toast(r.error); return; }
+  toast(`Uživatel ${r.data.login} přidán. Přihlásí se jménem „${r.data.login}“ a zadaným heslem.`);
+  $('uLogin').value = ''; $('uPw').value = ''; $('uRole').value = 'vedouci';
+  loadUsers();
+});
+$('usersBody').addEventListener('change', async e => {
+  const id = e.target.dataset.urole; if (!id) return;
+  const r = await callFn('manage-users', { action:'role', id, role: e.target.value });
+  if (r.error) toast(r.error); else toast('Role uložena. Projeví se při příštím přihlášení uživatele.');
+  loadUsers();
+});
+$('usersBody').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.upw) { pwOpen = pwOpen === b.dataset.upw ? null : b.dataset.upw; renderUsers(); return; }
+  if (b.dataset.upwsave) {
+    const id = b.dataset.upwsave, pw = ($('pw_' + id) || {}).value || '';
+    if (pw.length < 6) { toast('Heslo musí mít aspoň 6 znaků.'); return; }
+    b.disabled = true; const r = await callFn('manage-users', { action:'password', id, password: pw }); b.disabled = false;
+    if (r.error) { toast(r.error); return; }
+    pwOpen = null; toast('Heslo změněno.'); renderUsers(); return;
+  }
+  if (b.dataset.udel) {
+    const u = (usersList || []).find(x => x.id === b.dataset.udel);
+    if (!(await ask(`Odebrat uživatele ${u ? u.login : ''}? Už se nebude moct přihlásit.`, 'Odebrat'))) return;
+    const r = await callFn('manage-users', { action:'delete', id: b.dataset.udel });
+    if (r.error) toast(r.error); else toast('Uživatel odebrán.');
+    loadUsers();
+  }
+});
+
 // ---------- start ----------
 bindSettings(); bindMgr(); renderDrivers(); renderVehicles(); renderCustomers(); applyRole(); drawMarkers(true); renderResults(); drawRoutes();
 </script>
 <script>
 (() => {
   // ---- Nastavení Supabase ----
-  const SUPABASE_URL = 'https://srzgttvkaenisqnpxzuw.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_sLzlTYwp6qs-fCaaeMLIhQ_NZpULi24';
+  // Testovací verze (složka /test/) používá vlastní, oddělený projekt Supabase.
+  const IS_TEST = /\/test\//.test(location.pathname);
+  const TEST_URL = '', TEST_KEY = '';   // doplní se po založení testovacího projektu
+  const SUPABASE_URL = IS_TEST ? TEST_URL : 'https://srzgttvkaenisqnpxzuw.supabase.co';
+  const SUPABASE_KEY = IS_TEST ? TEST_KEY : 'sb_publishable_sLzlTYwp6qs-fCaaeMLIhQ_NZpULi24';
+  if (IS_TEST) { document.title = 'TEST – ' + document.title; const b = document.createElement('div'); b.className = 'test-banner'; b.textContent = 'TESTOVACÍ VERZE – zkušební data, nic se nepromítne do ostré aplikace'; document.body.prepend(b); }
   const ROW = 'main';
   // přihlašovací jméno → účet v Supabase jmeno@trasy.local (stávající účty s e-mailem fungují dál)
   const LOGIN_DOMAIN = 'trasy.local';

@@ -10,5 +10,10 @@ Nastavení databáze: spusťte `supabase.sql` v Supabase SQL Editoru (lze spouš
 - `index.html` – vedoucí (plánování, Stav, adresáře) a expedice (nakládka, převzetí klecí).
 - `ridic.html` – pohled řidiče bez přihlášení; otevírá se tajným odkazem, který platí jen kolem dne jízdy.
 - `supabase/functions/send-sms/index.ts` – serverová funkce, která posílá řidičům SMS přes BulkGate (tajné údaje `BULKGATE_APP_ID`, `BULKGATE_APP_TOKEN` v Edge Functions → Secrets).
+- `supabase/functions/manage-users/index.ts` – serverová funkce pro správu uživatelů z aplikace (přidání, heslo, role, odebrání; jen vedoucí).
 
 Používá bezplatné služby OpenStreetMap Nominatim (adresy), OSRM (trasy) a Google Mapy (navigace).
+
+## Testovací verze
+
+Složka `test/` (https://giangcz123.github.io/trasypradelny/test/) je zkušební verze napojená na samostatný projekt Supabase (`TEST_URL`, `TEST_KEY` v `index.html` a `ridic.html`). Nové funkce se nejdřív nahrají do `test/`, po schválení se zkopírují do kořene.
