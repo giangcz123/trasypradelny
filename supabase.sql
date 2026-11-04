@@ -20,8 +20,9 @@ insert into public.app_state (id) values ('main') on conflict (id) do nothing;
 -- =====================================================================
 -- 2. Role uživatelů
 --    Účet bez záznamu je vedoucí (vidí a upravuje vše).
---    Účet expedice zapíšete takto (e-mail podle skutečného účtu):
---      insert into public.user_roles (email, role) values ('expedice@vase-firma.cz', 'expedice')
+--    Přihlašovací jméno „jmeno“ = účet jmeno@trasy.local (Authentication → Users → Add user).
+--    Účet expedice zapíšete takto:
+--      insert into public.user_roles (email, role) values ('expedice@trasy.local', 'expedice')
 --        on conflict (email) do update set role = excluded.role;
 -- =====================================================================
 create table if not exists public.user_roles (

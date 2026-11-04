@@ -353,10 +353,10 @@ body.locked{padding-bottom:0}
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
     <p class="lock-sub">D&amp;D laundry, Vidov · verze 3.11.</p>
-    <p id="lockIntro" class="lock-text">Přihlaste se e-mailem a heslem.</p>
+    <p id="lockIntro" class="lock-text">Přihlaste se jménem a heslem.</p>
     <div id="loginFields">
-      <label for="email">E-mail</label>
-      <input id="email" type="email" autocomplete="username" required>
+      <label for="email">Přihlašovací jméno</label>
+      <input id="email" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
       <label for="pw1" style="margin-top:.5rem">Heslo</label>
       <input id="pw1" type="password" autocomplete="current-password" required>
     </div>
@@ -1801,6 +1801,11 @@ bindSettings(); bindMgr(); renderDrivers(); renderVehicles(); renderCustomers();
   const SUPABASE_URL = 'https://srzgttvkaenisqnpxzuw.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_sLzlTYwp6qs-fCaaeMLIhQ_NZpULi24';
   const ROW = 'main';
+  // přihlašovací jméno → účet v Supabase jmeno@trasy.local (stávající účty s e-mailem fungují dál)
+  const LOGIN_DOMAIN = 'trasy.local';
+  const loginEmail = v => { v = String(v || '').trim().toLowerCase(); return v.includes('@') ? v
+    : v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.') + '@' + LOGIN_DOMAIN; };
+  const shortUser = e => String(e).endsWith('@' + LOGIN_DOMAIN) ? String(e).slice(0, -LOGIN_DOMAIN.length - 1) : String(e);
 
   const $ = id => document.getElementById(id);
   const msg = t => { $('lockMsg').textContent = t; };
@@ -1864,7 +1869,7 @@ bindSettings(); bindMgr(); renderDrivers(); renderVehicles(); renderCustomers();
 
   function startApp(row){
     version = row.version || 1;
-    window.__sb = sb; window.__USER_EMAIL = user.email || '';
+    window.__sb = sb; window.__USER_EMAIL = shortUser(user.email || '');
     const d = row.data || {};
     window.__BOOT = { state: d.state || null, geo: d.geo || {} };
     const sc = document.createElement('script'); sc.textContent = $('appScript').textContent; document.body.appendChild(sc);
@@ -1885,8 +1890,8 @@ bindSettings(); bindMgr(); renderDrivers(); renderVehicles(); renderCustomers();
     e.preventDefault(); $('lockBtn').disabled = true;
     try {
       msg('Přihlašuji…');
-      const { data, error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw1').value });
-      if (error) { msg(/invalid/i.test(error.message) ? 'Nesprávný e-mail nebo heslo.' : 'Přihlášení se nepovedlo: ' + error.message); return; }
+      const { data, error } = await sb.auth.signInWithPassword({ email: loginEmail($('email').value), password: $('pw1').value });
+      if (error) { msg(/invalid/i.test(error.message) ? 'Nesprávné jméno nebo heslo.' : 'Přihlášení se nepovedlo: ' + error.message); return; }
       user = data.user; await afterLogin();
     } catch(err){ console.error(err); msg('Spojení s databází selhalo. Zkontrolujte internet a zkuste to znovu.'); }
     finally { const b = $('lockBtn'); if (b) b.disabled = false; }
