@@ -28,7 +28,7 @@ const SMS_LANG = {
   cs: { run: 'Linka', dep: 'vyjezd', wd: ['Ne', 'Po', 'Ut', 'St', 'Ct', 'Pa', 'So'] },
   en: { run: 'Run', dep: 'departure', wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] },
   vi: { run: 'Tuyen', dep: 'xuat phat', wd: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'] },
-  uk: { run: 'Лінія', dep: 'виїзд', wd: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'], unicode: true },
+  uk: { run: 'Лінія', dep: 'о', wd: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'], unicode: true },
 };
 function smsLang(run) { const l = (((run.plan || {}).driver) || {}).lang; return SMS_LANG[l] ? l : 'en'; }
 function smsUnicode(run) { return !!SMS_LANG[smsLang(run)].unicode; }
@@ -41,7 +41,8 @@ function smsText(run, appUrl) {
   const link = appUrl.replace(/\/?$/, '/') + 'ridic.html?r=' + run.token;
   const plate = String((p.vehicle || {}).plate || '').trim();
   const clean = s => uni ? String(s || '').replace(/[–—]/g, '-') : plain(s);
-  const head = (veh) => clean(`${L.run} ${run.linka}, ${[veh, plate].filter(Boolean).join(' ')}, ${dayShort(run.day, L.wd)} ${L.dep} ${hm(p.start)} `);
+  const first = String(((p.driver || {}).name) || '').trim().split(/\s+/)[0] || '';   // jen křestní jméno
+  const head = (veh) => clean(`${first ? first + ': ' : ''}${L.run} ${run.linka}, ${[veh, plate].filter(Boolean).join(' ')}, ${dayShort(run.day, L.wd)} ${L.dep} ${hm(p.start)} `);
   const limit = uni ? 134 : 160;   // 1 SMS bez diakritiky / 2 části v Unicode
   const name = clean((p.vehicle || {}).name || '').trim();
   // když se nevejde celý název auta, zkusí se jen první slovo, jinak jen SPZ
