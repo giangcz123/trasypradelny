@@ -103,6 +103,9 @@ button.wa{border:0; font:inherit; font-weight:700; cursor:pointer}
 details.pick{grid-column:2 / -1; border:1px solid var(--line); border-radius:6px; background:var(--field)}
 details.pick summary{cursor:pointer; padding:.5rem .65rem; font-weight:600; list-style-position:inside}
 details.pick summary .note{font-weight:400; margin-left:.3rem}
+details.pick.extra{background:transparent; border-style:dashed}
+.pick-foot{display:flex; justify-content:flex-end; margin-top:.5rem}
+.pick-foot .pick-done{min-width:7rem}
 details.pick[open] summary{border-bottom:1px solid var(--line)}
 .pick-body{padding:.5rem .65rem}
 .pick-list{max-height:260px; overflow:auto; margin-top:.45rem}
@@ -196,6 +199,8 @@ button.danger:hover{border-color:var(--err)}
 .ld-row .nm{flex:1; font-weight:600}
 .ld-row .nm small{display:block; font-weight:400; color:var(--warn-ink)}
 .ld-row button{width:44px; height:44px; border-radius:999px; font-size:1.3rem; padding:0; flex:none}
+.ld-row select.cnt{width:4.6rem; height:48px; flex:none; text-align:center; text-align-last:center; font-size:1.35rem; font-weight:800; font-variant-numeric:tabular-nums;
+  border:2px solid var(--blue); border-radius:10px; background:var(--field); color:var(--ink); padding:0 .3rem; cursor:pointer}
 .ld-row .v{width:2.2rem; text-align:center; font-size:1.35rem; font-weight:800; font-variant-numeric:tabular-nums}
 .ld-sum{display:flex; justify-content:space-between; align-items:baseline; font-weight:700; margin:.6rem 0}
 .ld-sum b{font-size:1.4rem}
@@ -303,10 +308,11 @@ button.danger:hover{border-color:var(--err)}
   .panel{padding:.85rem .8rem; margin-bottom:.6rem; border-radius:12px}
   .panel > .hint{display:none}
   .mode-hint{font-size:.85rem}
-  .vehicle{grid-template-columns:14px 1fr 1fr; grid-template-areas:"sw name name" "drv drv st" "pick pick pick"; gap:.5rem; padding:.8rem 0}
+  .vehicle{grid-template-columns:14px 1fr 1fr; grid-template-areas:"sw name name" "drv drv st"; gap:.5rem; padding:.8rem 0}
   .vehicle .swatch{grid-area:sw; margin:0} .vehicle .vname{grid-area:name} .vehicle .v-drv{grid-area:drv} .vehicle .v-start{grid-area:st}
   .vehicle > .note.warn{grid-column:1 / -1 !important}
-  details.pick{grid-area:pick; grid-column:1 / -1}
+  details.pick{grid-area:auto; grid-column:1 / -1}
+  .pick-foot .pick-done{width:100%; padding:.8rem}
   details.pick summary{padding:.75rem .7rem}
   .pick-list{max-height:55vh}
   .pick-item{padding:.6rem .2rem; font-size:1rem !important}
@@ -748,35 +754,81 @@ function hasLicense(d, req){
   (d?.licenses || []).forEach(l => (IMPLIES[l]||[]).forEach(x => own.add(x)));
   return own.has(req);
 }
+// linky už uložené na plánovaný den (kvůli skrytí zákazníků a řidičů, kteří už jedou jinde)
+let planRuns = [], planRunsDay = null;
+async function loadPlanRuns(force){
+  const sb = sbc(), day = state.settings.date; if (!sb || isExp() || !day) return;
+  if (!force && planRunsDay === day) return;
+  planRunsDay = day;
+  try { const { data, error } = await sb.from('runs').select('vehicle_id, linka, plan').eq('day', day); if (error) throw error; planRuns = data || []; }
+  catch(_){ planRuns = []; }
+  if (planRunsDay === day) renderVehicles(false);
+}
+const slotGroup = k => k === 'z2' ? 'z2' : 'am';   // ranní závoz 3:00–8:00 / 2. závoz
+const routeSlot = (slot, start) => slot || (start < 6 * 60 ? 'e' : '8');
+// co už jede na jiných linkách téhož dne: zákazníci (podle závozu) a řidiči ranních linek
+function taken(v){
+  const g = slotGroup(carSlot(v)), next = (v.runs || 0) + 1, cust = new Map(), drv = new Map();
+  const add = (vid, linka, slot, ids, did, vname) => {
+    if (vid === v.id && linka === next) return;   // tutéž linku právě plánuji znovu
+    ids.forEach(id => { if (!cust.has(id)) cust.set(id, []); cust.get(id).push({ slot, vname }); });
+    if (g === 'am' && slotGroup(slot) === 'am' && did && vid !== v.id) drv.set(did, vname);
+  };
+  planRuns.forEach(r => { const p = r.plan || {};
+    add(r.vehicle_id, r.linka, routeSlot(p.slot, p.start), (p.stops || []).map(x => x.id), (p.driver || {}).id, (p.vehicle || {}).name || ''); });
+  const R = state.result;
+  if (R && R.date === state.settings.date) R.routes.forEach((r, k) => { const x = state.vehicles[k];
+    if (x && r.ids.length) add(x.id, r.linka, routeSlot(r.slot, r.start), r.ids, r.driver, x.name); });
+  if (g === 'am') state.vehicles.forEach(x => { if (x.id !== v.id && x.driver && slotGroup(carSlot(x)) === 'am' && !drv.has(x.driver)) drv.set(x.driver, x.name); });
+  return { cust, drv, g };
+}
 function pickerHtml(v){
   const mine = state.customers.filter(c => c.car === v.id);
   const sum = mine.reduce((a,c) => a + (+c.demand || 0), 0);
   const over = sum > +v.capacity;
   const day = planDay();
-  const item = c => {
-    const other = c.car && c.car !== v.id ? state.vehicles.find(x => x.id === c.car) : null;
-    return `<label class="pick-item ${other ? 'other' : ''}" data-s="${esc((c.name + ' ' + c.address).toLowerCase())}">
+  const T = taken(v), vSlot = carSlot(v);
+  // zákazník už jede jinde: zaškrtnutý u jiného auta, nebo na uložené lince téhož závozu (u mimořádných téhož dopoledne / 2. závozu)
+  const busy = (c, extra) => c.car !== v.id && (!!c.car || (T.cust.get(c.id) || []).some(x => extra ? slotGroup(x.slot) === T.g : x.slot === vSlot));
+  const item = c => `<label class="pick-item" data-s="${esc((c.name + ' ' + c.address).toLowerCase())}">
       <input type="checkbox" data-pick="${c.id}" data-v="${v.id}" ${c.car === v.id ? 'checked' : ''}>
-      ${c.car === v.id ? `<b class="ord" title="Pořadí na lince">${c.order || ''}.</b>` : ''}<span>${esc(c.name || c.address)}</span><small>${other ? 'jede ' + esc(other.name) : esc(slotText(c))}</small></label>`; };
-  const vSlot = carSlot(v);
+      ${c.car === v.id ? `<b class="ord" title="Pořadí na lince">${c.order || ''}.</b>` : ''}<span>${esc(c.name || c.address)}</span><small>${esc(slotText(c))}</small></label>`;
+  const filterBox = (key, n) => n > 6 ? `<input class="pick-filter" data-v="${key}" placeholder="Hledat zákazníka…" value="${esc(pickFilter[key] || '')}">` : '';
+  const doneBtn = key => `<div class="pick-foot"><button type="button" class="primary pick-done" data-close="${key}">Hotovo</button></div>`;
   const allowed = [vSlot];
-  const sameDay = vSlot === 'z2'; // 2. závoz: jen zákazníci se zaškrtnutým dnem
-  // 2. závoz: jen zákazníci se zaškrtnutým konkrétním dnem
-  const shown = state.customers.filter(c => c.car === v.id || (slotsOf(c).some(k => allowed.includes(k)) && (!sameDay || goesOn(c, day))));
-  const hidden = state.customers.length - shown.length;
+  const sameDay = vSlot === 'z2'; // 2. závoz: jen zákazníci se zaškrtnutým konkrétním dnem
+  const fits = state.customers.filter(c => c.car === v.id || (slotsOf(c).some(k => allowed.includes(k)) && (!sameDay || goesOn(c, day))));
+  const shown = fits.filter(c => !busy(c, false));
+  const nBusy = fits.length - shown.length;
+  const hidden = state.customers.length - fits.length;
+  const hiddenNote = (hidden ? `<p class="note" style="margin:.4rem 0 0">${(() => { const why = sameDay ? 's jiným závozem nebo bez jízdy v tento den' : 's jiným nebo nevyplněným závozem'; return hidden === 1 ? '1 zákazník ' + why + ' je skrytý' : hidden <= 4 ? hidden + ' zákazníci ' + why + ' jsou skrytí' : hidden + ' zákazníků ' + why + ' je skrytých'; })()}.</p>` : '')
+    + (nBusy ? `<p class="note" style="margin:.3rem 0 0">${nBusy === 1 ? '1 zákazník už jede' : nBusy <= 4 ? nBusy + ' zákazníci už jedou' : nBusy + ' zákazníků už jede'} na jiném autě nebo lince – ${nBusy === 1 ? 'je skrytý' : 'jsou skrytí'}.</p>` : '');
   const todays = shown.filter(c => goesOn(c, day)), rest = shown.filter(c => !goesOn(c, day));
-  const hiddenNote = hidden ? `<p class="note" style="margin:.4rem 0 0">${(() => { const why = sameDay ? 's jiným závozem nebo bez jízdy v tento den' : 's jiným nebo nevyplněným závozem'; return hidden === 1 ? '1 zákazník ' + why + ' je skrytý' : hidden <= 4 ? hidden + ' zákazníci ' + why + ' jsou skrytí' : hidden + ' zákazníků ' + why + ' je skrytých'; })()}.</p>` : '';
   const list = !state.customers.length ? '<p class="note" style="margin:0">Zatím žádní zákazníci. Přidejte je v záložce Zákazníci.</p>'
-    : !shown.length ? `<p class="note" style="margin:0">${vSlot === 'z2' ? 'Žádný zákazník nemá 2. závoz s jízdou ' + esc(dayLabel(state.settings.date).toLowerCase()) + '.' : 'Žádný zákazník nemá závoz ' + (vSlot === 'e' ? '3:00 – 4:00' : '8:00') + '.'} Nastavte to v záložce Zákazníci.</p>${hiddenNote}`
+    : !shown.length ? `<p class="note" style="margin:0">${nBusy && fits.length ? 'Všichni zákazníci tohoto závozu už jedou na jiném autě.' : vSlot === 'z2' ? 'Žádný zákazník nemá 2. závoz s jízdou ' + esc(dayLabel(state.settings.date).toLowerCase()) + '.' : 'Žádný zákazník nemá závoz ' + (vSlot === 'e' ? '3:00 – 4:00' : '8:00') + '.'}${nBusy && fits.length ? '' : ' Nastavte to v záložce Zákazníci.'}</p>${hiddenNote}`
     : (todays.length
       ? `<p class="pick-sep">Jezdí ${esc(dayLabel(state.settings.date).toLowerCase())}</p>${todays.map(item).join('')}${rest.length ? `<p class="pick-sep">Ostatní</p>${rest.map(item).join('')}` : ''}`
       : shown.map(item).join('')) + hiddenNote;
+  // mimořádné závozy: všichni zákazníci bez ohledu na závoz a den
+  const xKey = 'x' + v.id;
+  const xAll = state.customers.filter(c => !busy(c, true)).slice().sort((a,b) => (a.name || a.address || '').localeCompare(b.name || b.address || '', 'cs'));
+  const xMine = mine.filter(c => !fits.includes(c)).length;
+  const xList = xAll.length ? xAll.map(item).join('') : '<p class="note" style="margin:0">Všichni zákazníci už dnes jedou na jiném autě.</p>';
   return `<details class="pick" data-v="${v.id}" ${openPicks.has(v.id) ? 'open' : ''}>
     <summary>Zákazníci na lince: ${mine.length}<span class="note ${over ? 'warn' : ''}">${mine.length ? klece(sum) + ' z ' + klece(v.capacity) + (over ? ' – přetíženo' : '') : 'zatím nikdo'}</span></summary>
     <div class="pick-body">
       ${mine.length ? `<ol class="pick-order">${carOrder(v.id).map(c => `<li>${esc(c.name || c.address)}</li>`).join('')}</ol>` : '<p class="note" style="margin:0 0 .3rem">Zaškrtávejte hotely v pořadí, v jakém je má auto objet.</p>'}
-      ${shown.length > 6 ? `<input class="pick-filter" data-v="${v.id}" placeholder="Hledat zákazníka…" value="${esc(pickFilter[v.id] || '')}">` : ''}
+      ${filterBox(v.id, shown.length)}
       <div class="pick-list">${list}</div>
+      ${doneBtn(v.id)}
+    </div></details>
+  <details class="pick extra" data-v="${xKey}" ${openPicks.has(xKey) ? 'open' : ''}>
+    <summary>Mimořádné závozy<span class="note">${xMine ? 'na lince ' + xMine : 'všichni zákazníci'}</span></summary>
+    <div class="pick-body">
+      <p class="note" style="margin:0 0 .3rem">Zákazník mimo svůj běžný den nebo čas. Přidá se na konec linky.</p>
+      ${filterBox(xKey, xAll.length)}
+      <div class="pick-list">${xList}</div>
+      ${doneBtn(xKey)}
     </div></details>`;
 }
 function applyPickFilters(){
@@ -843,6 +895,7 @@ function renderModeHint(){
     : `Zadáváte doručení <strong>na dnešek, ${esc(d)}</strong> Nabízejí se jen zákazníci s 2. závozem, kteří mají zaškrtnutý tento den.`;
 }
 function renderVehicles(withCards = true){
+  loadPlanRuns();
   if (withCards) renderCarCards();
   $('vehicles').innerHTML = state.vehicles.length ? state.vehicles.map((v,i) => `
     <div class="vehicle">
@@ -850,9 +903,11 @@ function renderVehicles(withCards = true){
       <div class="vname">${esc(v.name)}<small>${[v.plate, klece(v.capacity), 'další linka ' + ((v.runs||0)+1)].filter(Boolean).map(esc).join(' · ')}</small></div>
       <div class="v-drv"><label>Řidič</label><select data-i="${i}" data-k="driver">
         <option value="">— nevybrán —</option>
-        ${state.drivers.map(d => `<option value="${d.id}" ${v.driver===d.id?'selected':''}>${esc(d.name || 'Bez jména')}${hasLicense(d, v.license) ? '' : ' (chybí ' + esc(v.license) + ')'}</option>`).join('')}
+        ${(() => { const T = taken(v); return state.drivers.map(d => { const on = T.drv.get(d.id);
+          return `<option value="${d.id}" ${v.driver===d.id?'selected':''} ${on && v.driver !== d.id ? 'disabled' : ''}>${esc(d.name || 'Bez jména')}${on ? ' (jede ' + esc(on) + ')' : hasLicense(d, v.license) ? '' : ' (chybí ' + esc(v.license) + ')'}</option>`; }).join(''); })()}
       </select></div>
       <div class="v-start"><label>Výjezd</label>${startSelect(v, i)}</div>
+      ${v.driver && taken(v).drv.has(v.driver) ? `<p class="note warn" style="grid-column:2 / -1;margin:0">Tento řidič už ráno řídí ${esc(taken(v).drv.get(v.driver))}. Na ranní lince může řídit jen jedno auto.</p>` : ''}
       ${v.driver && !hasLicense(state.drivers.find(d => d.id === v.driver), v.license) ? `<p class="note warn" style="grid-column:2 / -1;margin:0">Vybraný řidič nemá oprávnění ${esc(v.license)}, které toto auto vyžaduje.</p>` : ''}
       ${pickerHtml(v)}
     </div>`).join('') : '<p class="empty">Zatím žádná auta. Přidejte je v záložce Auta.</p>';
@@ -862,6 +917,12 @@ $('vehicles').addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.pick')) return;
   if (d.open) openPicks.add(d.dataset.v); else openPicks.delete(d.dataset.v);
 }, true);
+$('vehicles').addEventListener('click', e => {
+  const b = e.target.closest('.pick-done'); if (!b) return;
+  const d = b.closest('details.pick'); if (!d) return;
+  d.open = false; openPicks.delete(d.dataset.v);
+  d.scrollIntoView({ block:'nearest' });
+});
 // pořadí zastávek = pořadí zaškrtnutí
 function carOrder(vid){ return state.customers.filter(c => c.car === vid).sort((a,b) => (a.order||0) - (b.order||0)); }
 function renumber(vid){ carOrder(vid).forEach((c,i) => { c.order = i + 1; }); }
@@ -875,7 +936,8 @@ $('vehicles').addEventListener('change', e => {
   save(); // zaškrtávání připravuje další plánování, hotové trasy nemění
   const y = window.scrollY, list = e.target.closest('.pick-list'), st = list ? list.scrollTop : 0;
   renderVehicles(false); drawMarkers();
-  const nl = document.querySelector(`details.pick[data-v="${vid}"] .pick-list`); if (nl) nl.scrollTop = st;
+  const key = (e.target.closest('details.pick') || {}).dataset?.v || vid;
+  const nl = document.querySelector(`details.pick[data-v="${key}"] .pick-list`); if (nl) nl.scrollTop = st;
   window.scrollTo(0, y);
 });
 $('vehicles').addEventListener('input', e => {
@@ -1296,6 +1358,11 @@ $('plan').onclick = async () => {
     const t = startMinutes(v);
     if (t == null || isNaN(t)) return setStatus(`${v.name}: vyberte vlastní výjezd.`, true);
   }
+  for (const v of state.vehicles){
+    if (!v.driver || !state.customers.some(c => c.car === v.id)) continue;
+    const on = taken(v).drv.get(v.driver), d = state.drivers.find(x => x.id === v.driver);
+    if (on) return setStatus(`${d ? d.name : 'Řidič'} už ráno řídí ${on}. Na ranní lince 3:00 – 8:00 může řídit jen jedno auto – u ${v.name} vyberte jiného řidiče.`, true);
+  }
 
   lock(true);
   try {
@@ -1350,7 +1417,7 @@ $('plan').onclick = async () => {
         let km = 0, prev = 0; r.stops.forEach(c => { km += M.dist[prev][c]; prev = c; }); if (r.stops.length) km += M.dist[prev][0];
         return { ids: r.stops.map(c => usable[c-1].id), times: sc.out.map(x => ({arrive:x.arrive, begin:x.begin, load:x.load})),
                  linka: (state.vehicles[k].runs||0) + 1, start: vehicles[k].start, back: sc.back, km, travel: r.travel || 0, load: r.load || 0,
-                 breakAt: sc.breakAt, breakIdx: sc.breakIdx, driver: state.vehicles[k].driver || '' };
+                 breakAt: sc.breakAt, breakIdx: sc.breakIdx, driver: state.vehicles[k].driver || '', slot: carSlot(state.vehicles[k]) };
       }),
       unassigned: sol.unassigned.map(c => usable[c-1].id).concat(skipped.map(s => s.id)),
     };
@@ -1360,8 +1427,10 @@ $('plan').onclick = async () => {
     // dlaždice „Auta a řidiči na lince“ se po naplánování vynuluje
     state.customers.forEach(c => { c.car = ''; c.order = 0; });
     state.vehicles.forEach(v => { v.driver = ''; v.start = ''; });
+    openPicks.clear(); Object.keys(pickFilter).forEach(k => delete pickFilter[k]);
     setStatus('Ukládám linky pro řidiče…');
     const sync = await syncRuns(st.date, freshK);
+    loadPlanRuns(true);
     save(); renderVehicles(false);
     drawMarkers(true); renderResults(); await drawRoutes();
     const nu = state.result.unassigned.length;
@@ -1501,7 +1570,7 @@ function applyRole(){
 function runPlan(r, k, day){
   const v = state.vehicles[k], drv = state.drivers.find(d => d.id === r.driver);
   const byId = Object.fromEntries(state.customers.map(c => [c.id, c]));
-  return { day, linka: r.linka, loader: r.linka > 1 ? 'ridic' : 'expedice',
+  return { day, linka: r.linka, slot: r.slot || null, loader: r.linka > 1 ? 'ridic' : 'expedice',
     vehicle: { id: v.id, name: v.name, plate: v.plate || '', capacity: +v.capacity || 0, license: v.license || '', color: COLORS[k % COLORS.length] },
     driver: drv ? { id: drv.id, name: drv.name, phone: drv.phone || '' } : null,
     managerPhone: state.settings.managerPhone || '',
@@ -1637,6 +1706,13 @@ function renderStav(){
     </article>`; }).join('');
 }
 
+// výběr počtu klecí: klik na číslo otevře menu
+function cntSelect(attr, id, val, max, label){
+  const top = Math.max(max, +val || 0);
+  let o = `<option value="0" ${+val ? '' : 'selected'}>0</option>`;
+  for (let n = 1; n <= top; n++) o += `<option value="${n}" ${+val === n ? 'selected' : ''}>${n}</option>`;
+  return `<select class="cnt" ${attr}="${esc(id)}" aria-label="${esc(label)}">${o}</select>`;
+}
 function renderExp(){
   const box = $('expBody'); if (!box) return;
   document.querySelectorAll('.dn-day').forEach(h => h.textContent = dayLabel(runsDay) + (isToday() ? ' · dnes' : ''));
@@ -1666,7 +1742,7 @@ function renderExp(){
     return `<div class="ret"><h3>Převzetí po návratu</h3>
       <p class="op-meta">Řidič vyložil ${klece(run.finish.unloaded)} v ${timeOfIso(run.finish.at)} (podle hotelů ${run.finish.expected})${+run.finish.leftClean ? ` · na autě zůstalo ${klece(run.finish.leftClean)} čistého prádla` : ''}.</p>
       ${run.receive ? `<div class="okbar">Převzato ${klece(run.receive.count)} v ${timeOfIso(run.receive.at)}.</div>` : `
-      <div class="ld-row"><span class="nm">Převzato špinavých klecí</span><button data-rm aria-label="Méně">−</button><span class="v">${rd}</span><button data-rp aria-label="Více">+</button></div>
+      <div class="ld-row"><span class="nm">Převzato špinavých klecí</span>${cntSelect('data-rc', run.id, rd, Math.max(40, +((P.vehicle||{}).capacity) || 0, (+run.finish.unloaded || 0) + 10), 'Převzato špinavých klecí')}</div>
       ${rd !== +run.finish.unloaded ? `<label>Proč nesedí počet? (povinné)<input id="retReason"></label>` : ''}
       <button class="primary big-btn" id="retOk">Potvrdit převzetí</button>`}</div>`; })() : '';
   box.innerHTML = `
@@ -1678,7 +1754,7 @@ function renderExp(){
       ${status}
       ${removed.length ? `<div class="warnbar">Po nakládce odebráno z linky: ${klece(removed.reduce((a,id) => a + +lc[id], 0))} – vyložit z auta.</div>` : ''}
       <div>${st.map((s,i) => `<div class="ld-row"><span class="nm">${i+1}. ${esc(s.name || s.address)}${run.load && isLoadRun && lc[s.id] == null ? '<small>přidán po nakládce – doplňte klece</small>' : ''}</span>
-        ${driverLoaded ? `<span class="v">${+lc[s.id] || 0}</span>` : `<button data-m="${esc(s.id)}" aria-label="${esc(s.name)} méně">−</button><span class="v">${draft[s.id]}</span><button data-p="${esc(s.id)}" aria-label="${esc(s.name)} více">+</button>`}</div>`).join('')}</div>
+        ${driverLoaded ? `<span class="v">${+lc[s.id] || 0}</span>` : cntSelect('data-c', s.id, draft[s.id], 19, 'Počet klecí – ' + (s.name || s.address))}</div>`).join('')}</div>
       <div class="ld-sum"><span>Celkem na autě</span><span><b>${driverLoaded ? Object.values(lc).reduce((a,b) => a + +b, 0) : sum}</b>${cap ? ` z ${cap}` : ''}</span></div>
       ${!driverLoaded && cap && sum > cap ? `<div class="warnbar">Auto uveze nejvýš ${klece(cap)}.</div>` : ''}
       ${driverLoaded ? '' : `<button class="primary big-btn" id="expSave" ${sum ? '' : 'disabled'}>${isLoadRun ? (run.load ? 'Uložit opravu nakládky' : 'Potvrdit nakládku') : 'Uložit připravené klece'}</button>`}
@@ -1686,8 +1762,7 @@ function renderExp(){
     </article>`;
   box.querySelectorAll('[data-car]').forEach(b => b.onclick = () => { expCar = b.dataset.car; expRun = null; renderExp(); });
   box.querySelectorAll('[data-run]').forEach(b => b.onclick = () => { expRun = b.dataset.run; renderExp(); });
-  box.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { draft[b.dataset.m] = Math.max(0, draft[b.dataset.m] - 1); renderExp(); });
-  box.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { draft[b.dataset.p]++; renderExp(); });
+  box.querySelectorAll('select[data-c]').forEach(x => x.onchange = () => { draft[x.dataset.c] = +x.value; renderExp(); });
   if ($('expSave')) $('expSave').onclick = async () => {
     $('expSave').disabled = true;
     const who = window.__USER_EMAIL || '', at = new Date().toISOString(), counts = { ...draft };
@@ -1696,8 +1771,7 @@ function renderExp(){
     if (error) { toast('Nepodařilo se uložit: ' + error.message); $('expSave').disabled = false; return; }
     delete expDraft[run.id]; toast(isLoadRun ? 'Nakládka potvrzena. Řidič uvidí počty klecí.' : 'Připravené klece uloženy.'); refreshRuns();
   };
-  box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { retDraft[run.id] = Math.max(0, (retDraft[run.id] ?? +run.finish.unloaded) - 1); renderExp(); });
-  box.querySelectorAll('[data-rp]').forEach(b => b.onclick = () => { retDraft[run.id] = (retDraft[run.id] ?? +run.finish.unloaded) + 1; renderExp(); });
+  box.querySelectorAll('select[data-rc]').forEach(x => x.onchange = () => { retDraft[run.id] = +x.value; renderExp(); });
   if ($('retOk')) $('retOk').onclick = async () => {
     const count = retDraft[run.id] ?? +run.finish.unloaded, reason = $('retReason') ? $('retReason').value.trim() : '';
     if (count !== +run.finish.unloaded && !reason) { $('retReason').focus(); toast('Napište, proč počet nesedí.'); return; }
