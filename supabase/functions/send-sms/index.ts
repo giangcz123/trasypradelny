@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Trasy prádelny – odeslání linky řidičům přes SMS (BulkGate).
 // Nasazení: Supabase → Edge Functions → Deploy a new function → Via Editor → název „send-sms“ → vložit tento soubor → Deploy.
 // Tajné údaje (Edge Functions → Secrets):
@@ -5,7 +6,6 @@
 //   BULKGATE_APP_TOKEN  – Application token z BulkGate
 //   SMS_SENDER          – nepovinné: vlastní odesílatel (text do 11 znaků, musí být schválený v BulkGate)
 //   APP_URL             – nepovinné: adresa aplikace, výchozí https://giangcz123.github.io/trasypradelny/
-import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -47,16 +47,22 @@ Deno.serve(async (req) => {
     const appUrl = Deno.env.get('APP_URL') || 'https://giangcz123.github.io/trasypradelny/';
     const sender = Deno.env.get('SMS_SENDER') || '';
 
-    // klient s oprávněními přihlášeného uživatele (platí pravidla databáze)
-    // klíč: z požadavku aplikace (hlavička apikey), jinak z proměnných projektu (nové i starší názvy)
+    // přístup do databáze s oprávněními přihlášeného uživatele (platí pravidla databáze)
+    const base = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
     let key = req.headers.get('apikey') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY') || '';
     if (!key) { try { const all = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') || '{}'); key = all.default || Object.values(all)[0] || ''; } catch (_) {} }
-    if (!key) return json({ error: 'Funkce nenašla klíč projektu Supabase.' }, 500);
-    const sb = createClient(Deno.env.get('SUPABASE_URL'), key, { global: { headers: { Authorization: req.headers.get('Authorization') || '' } } });
-    const { data: who, error: ue } = await sb.auth.getUser();
-    if (ue || !who || !who.user) return json({ error: 'Nepřihlášený uživatel.' }, 401);
-    const { data: isExp } = await sb.rpc('is_expedice');
-    if (isExp) return json({ error: 'Účet expedice nemůže posílat SMS.' }, 403);
+    const auth = req.headers.get('Authorization') || '';
+    if (!base || !key) return json({ error: 'Funkce nenašla adresu nebo klíč projektu Supabase.' }, 500);
+    const H = { apikey: key, Authorization: auth, 'Content-Type': 'application/json' };
+    const api = async (path, opt = {}) => {
+      const r = await fetch(base + path, { ...opt, headers: { ...H, ...(opt.headers || {}) } });
+      const t = await r.text(); let d = null; try { d = t ? JSON.parse(t) : null; } catch (_) { d = t; }
+      return { ok: r.ok, status: r.status, data: d };
+    };
+    const who = await api('/auth/v1/user');
+    if (!who.ok || !who.data || !who.data.id) return json({ error: 'Nepřihlášený uživatel – odhlaste se a přihlaste znovu.' }, 401);
+    const isExp = await api('/rest/v1/rpc/is_expedice', { method: 'POST', body: '{}' });
+    if (isExp.ok && isExp.data === true) return json({ error: 'Účet expedice nemůže posílat SMS.' }, 403);
 
     const body = await req.json().catch(() => ({}));
     const ids = Array.isArray(body.run_ids) ? body.run_ids.slice(0, 20) : [];
@@ -64,8 +70,9 @@ Deno.serve(async (req) => {
 
     const results = [];
     for (const id of ids) {
-      const { data: run, error } = await sb.from('runs').select('id, token, day, linka, plan').eq('id', id).maybeSingle();
-      if (error || !run) { results.push({ id, ok: false, error: 'Linka nenalezena.' }); continue; }
+      const got = await api('/rest/v1/runs?select=id,token,day,linka,plan&id=eq.' + encodeURIComponent(id));
+      const run = got.ok && Array.isArray(got.data) ? got.data[0] : null;
+      if (!run) { results.push({ id, ok: false, error: 'Linka nenalezena.' }); continue; }
       const drv = (run.plan || {}).driver;
       const number = drv && phoneDigits(drv.phone);
       let res;
@@ -84,7 +91,7 @@ Deno.serve(async (req) => {
       }
       const sms = { ...res, at: new Date().toISOString(), to: drv ? drv.name : '' };
       const patch = res.ok ? { sms, sent_at: sms.at } : { sms };
-      await sb.from('runs').update(patch).eq('id', id);
+      await api('/rest/v1/runs?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(patch), headers: { Prefer: 'return=minimal' } });
       results.push({ id, ...sms });
     }
     return json({ results });

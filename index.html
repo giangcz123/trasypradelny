@@ -1546,8 +1546,11 @@ async function sendSms(ks){
   } catch(e){ msg = e.message || String(e); }
   if (!data || data.error || !Array.isArray(data.results)) {
     msg = (data && data.error) || msg;
-    const notDeployed = /failed to send|not found|404|fetch/i.test(msg) && !/SMS brána|BULKGATE/i.test(msg);
-    setStatus('SMS se nepodařilo odeslat. ' + (notDeployed ? 'Serverová funkce send-sms zatím není v Supabase nasazená (postup je v návodu).' : msg), true);
+    const noFn = /not found|404/i.test(msg) && !/SMS brána|BULKGATE/i.test(msg);
+    const noReach = /failed to send|failed to fetch|networkerror|load failed/i.test(msg);
+    setStatus('SMS se nepodařilo odeslat. ' + (noFn ? 'V Supabase není funkce s názvem send-sms.'
+      : noReach ? 'Funkce send-sms neodpověděla – v Supabase otevřete Edge Functions → send-sms → Logs a podívejte se na chybu.'
+      : '') + (msg ? ` (${msg})` : ''), true);
     return;
   }
   for (const res of data.results) { const r = R.routes.find(x => x.runId === res.id); if (r) r.sms = res; }
