@@ -48,7 +48,10 @@ Deno.serve(async (req) => {
     const sender = Deno.env.get('SMS_SENDER') || '';
 
     // klient s oprávněními přihlášeného uživatele (platí pravidla databáze)
-    const key = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '';
+    // klíč: z požadavku aplikace (hlavička apikey), jinak z proměnných projektu (nové i starší názvy)
+    let key = req.headers.get('apikey') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY') || '';
+    if (!key) { try { const all = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') || '{}'); key = all.default || Object.values(all)[0] || ''; } catch (_) {} }
+    if (!key) return json({ error: 'Funkce nenašla klíč projektu Supabase.' }, 500);
     const sb = createClient(Deno.env.get('SUPABASE_URL'), key, { global: { headers: { Authorization: req.headers.get('Authorization') || '' } } });
     const { data: who, error: ue } = await sb.auth.getUser();
     if (ue || !who || !who.user) return json({ error: 'Nepřihlášený uživatel.' }, 401);

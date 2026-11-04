@@ -1542,7 +1542,7 @@ async function sendSms(ks){
   try {
     const out = await sbc().functions.invoke('send-sms', { body: { run_ids: list.map(([, r]) => r.runId) } });
     data = out.data;
-    if (out.error) { msg = out.error.message || ''; try { if (out.error.context && out.error.context.json) { const b = await out.error.context.json(); if (b && b.error) msg = b.error; } } catch(_){} }
+    if (out.error) { msg = out.error.message || ''; try { if (out.error.context && out.error.context.json) { const b = await out.error.context.json(); if (b && (b.error || b.message || b.msg)) msg = b.error || b.message || b.msg; } } catch(_){} }
   } catch(e){ msg = e.message || String(e); }
   if (!data || data.error || !Array.isArray(data.results)) {
     msg = (data && data.error) || msg;
