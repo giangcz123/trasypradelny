@@ -76,7 +76,6 @@ ol.stops li:first-child{border-top:0}
 ol.stops li button.pick{all:unset; flex:1; display:flex; align-items:center; gap:12px; cursor:pointer; min-height:44px}
 ol.stops li.cur{background:var(--blue-soft)}
 ol.stops li.done, ol.stops li.failed{color:var(--muted)}
-ol.stops li.pause{background:var(--warn-bg); color:var(--warn-ink)}
 .num{flex:none; width:28px; height:28px; border-radius:999px; display:grid; place-items:center; font-size:13px; font-weight:700; border:2px solid #B6BDCE; color:var(--muted)}
 li.cur .num{background:var(--blue); border-color:var(--blue); color:var(--blue-ink)}
 li.done .num{background:var(--go); border-color:var(--go); color:var(--go-ink)}
@@ -218,7 +217,6 @@ function changedBar(){
 function stopList(curId){
   const P0 = P(); let html = '';
   stops().forEach((s, i) => {
-    if (P0.breakIdx === i && P0.breakAt != null) html += pauseLi();
     const p = prog(s.id), cls = p ? (p.state === 'failed' ? 'failed' : 'done') : (s.id === curId ? 'cur' : '');
     const badge = p ? (p.state === 'failed' ? icon.x : icon.okS) : (i + 1);
     const sub = p ? (p.state === 'failed' ? `nedoručeno · ${esc(p.reason || '')}` : `předal ${+p.delivered || 0} · odvezl ${+p.picked || 0}`) : esc(s.address);
@@ -226,10 +224,8 @@ function stopList(curId){
     const inner = `<span class="num">${badge}</span><span class="nm"><span>${esc(s.name || s.address)}</span><small>${sub}</small></span>${right}`;
     html += `<li class="${cls}">${!p && run.load ? `<button class="pick" data-sel="${esc(s.id)}" aria-label="Vybrat ${esc(s.name)}">${inner}</button>` : inner}</li>`;
   });
-  if (P0.breakIdx === stops().length && P0.breakAt != null) html += pauseLi();
   return `<ol class="stops" aria-label="Celá linka">${html}<li><span class="num">P</span><span class="nm"><span>Návrat do prádelny</span><small>D&amp;D laundry, Vidov</small></span><span class="tm">${fmt(P0.back)}</span></li></ol>`;
 }
-const pauseLi = () => `<li class="pause"><span class="num" style="border:0">${icon.clock}</span><span class="nm"><span>Povinná pauza 45 min</span></span><span class="tm">${fmt(P().breakAt)}</span></li>`;
 
 function render(){
   const app = $('app');
