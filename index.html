@@ -799,7 +799,7 @@ function pickerHtml(v){
   const allowed = [vSlot];
   const sameDay = vSlot === 'z2'; // 2. závoz: jen zákazníci se zaškrtnutým konkrétním dnem
   const fits = state.customers.filter(c => c.car === v.id || (slotsOf(c).some(k => allowed.includes(k)) && (!sameDay || goesOn(c, day))));
-  const shown = fits.filter(c => !busy(c, false));
+  const shown = fits.filter(c => !busy(c, false)).sort(byName);
   const nBusy = fits.length - shown.length;
   const hidden = state.customers.length - fits.length;
   const hiddenNote = (hidden ? `<p class="note" style="margin:.4rem 0 0">${(() => { const why = sameDay ? 's jiným závozem nebo bez jízdy v tento den' : 's jiným nebo nevyplněným závozem'; return hidden === 1 ? '1 zákazník ' + why + ' je skrytý' : hidden <= 4 ? hidden + ' zákazníci ' + why + ' jsou skrytí' : hidden + ' zákazníků ' + why + ' je skrytých'; })()}.</p>` : '')
@@ -812,7 +812,7 @@ function pickerHtml(v){
       : shown.map(item).join('')) + hiddenNote;
   // mimořádné závozy: všichni zákazníci bez ohledu na závoz a den
   const xKey = 'x' + v.id;
-  const xAll = state.customers.filter(c => !busy(c, true)).slice().sort((a,b) => (a.name || a.address || '').localeCompare(b.name || b.address || '', 'cs'));
+  const xAll = state.customers.filter(c => !busy(c, true)).sort(byName);
   const xMine = mine.filter(c => !fits.includes(c)).length;
   const xList = xAll.length ? xAll.map(item).join('') : '<p class="note" style="margin:0">Všichni zákazníci už dnes jedou na jiném autě.</p>';
   return `<details class="pick" data-v="${v.id}" ${openPicks.has(v.id) ? 'open' : ''}>
@@ -898,7 +898,7 @@ function renderModeHint(){
 function renderVehicles(withCards = true){
   loadPlanRuns();
   if (withCards) renderCarCards();
-  $('vehicles').innerHTML = state.vehicles.length ? state.vehicles.map((v,i) => `
+  $('vehicles').innerHTML = state.vehicles.length ? vehOrder().map(i => [state.vehicles[i], i]).map(([v,i]) => `
     <div class="vehicle">
       <span class="swatch" style="background:${COLORS[i%COLORS.length]}"></span>
       <div class="vname">${esc(v.name)}<small>${[v.plate, klece(v.capacity), 'další linka ' + ((v.runs||0)+1)].filter(Boolean).map(esc).join(' · ')}</small></div>
@@ -1116,7 +1116,7 @@ function driverMessage(k){
   const d = [state.depot.lat, state.depot.lng];
   const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
   const day = dayLabel(R.date);
-  const pauseLine = r.breakAt != null ? `   Povinná pauza ${fmt(r.breakAt)}–${fmt(r.breakAt + 45)}` : '';
+  const pauseLine = '';   // pauza se jen započítá do časů
   const lines = r.ids.map((id,i) => { const s = byId[id], t = r.times[i];
     const bits = [s.kind==='R' ? 'rozvoz' : 'vyzvednutí', klece(s.demand)]; if (s.window) bits.push('okno ' + s.window);
     return (r.breakIdx === i ? pauseLine + '\n' : '') + `${i+1}. ${fmt(t.begin)}–${fmt(t.begin + (R.service ?? 45))} ${s.name ? s.name + ', ' : ''}${s.address} (${bits.join(', ')})${s.note ? '\n   ' + s.note : ''}`; });
@@ -1147,9 +1147,16 @@ function planDay(){
   const [y,m,dd] = d.split('-').map(Number); return DAY_BY_JS[new Date(y, m-1, dd).getDay()];
 }
 const goesOn = (c, day) => !!day && (c.days || []).includes(day);
+const byName = (a, b) => (a.name || a.address || '').localeCompare(b.name || b.address || '', 'cs', { sensitivity:'base', numeric:true });
+// pořadí aut v plánování: podle názvu, u stejného názvu čísla sestupně (Iveco 4, 3, 2, 1)
+function vehOrder(){
+  const key = v => { const m = String(v.name || '').trim().match(/^(.*?)(\d+)\s*$/); return m ? [m[1].trim(), +m[2]] : [String(v.name || '').trim(), -1]; };
+  return state.vehicles.map((v,i) => i).sort((a,b) => { const [na, xa] = key(state.vehicles[a]), [nb, xb] = key(state.vehicles[b]);
+    return na.localeCompare(nb, 'cs', { sensitivity:'base' }) || (xb - xa); });
+}
 function renderCustomers(){
   const q = ($('custFilter').value || '').toLowerCase().trim();
-  const list = state.customers.map((c,i) => [c,i]).filter(([c]) => !q || (c.name + ' ' + c.address).toLowerCase().includes(q));
+  const list = state.customers.map((c,i) => [c,i]).filter(([c]) => !q || (c.name + ' ' + c.address).toLowerCase().includes(q)).sort((a,b) => byName(a[0], b[0]));
   $('custCards').innerHTML = state.customers.length ? (list.length ? `<div class="crow-head" aria-hidden="true"><span>Název hotelu</span><span>Adresa</span><span>Kdy se jezdí</span><span>Závoz</span><span></span></div>` + list.map(([c,i]) => `
     <article class="card crow" data-ci="${i}">
       <div class="c-name"><input data-k="name" value="${esc(c.name)}" placeholder="Název hotelu" aria-label="Název hotelu"></div>
@@ -1510,11 +1517,11 @@ function renderResults(){
       <button id="nextLinka" ${state.stale ? 'disabled' : ''}>Připravit další linky</button>
       <button id="delPlan" class="ghost danger">Smazat naplánované trasy</button></div>`;
   html += '<div class="tickets">';
-  R.routes.forEach((r,k) => {
+  const ord = vehOrder(); R.routes.map((r,k) => k).sort((a,b) => (ord.indexOf(a) + 1 || 1e9) - (ord.indexOf(b) + 1 || 1e9)).forEach(k => { const r = R.routes[k];
     const v = state.vehicles[k] || {name:`Auto ${k+1}`, capacity:'?'};
     const c = COLORS[k%COLORS.length];
     if (!r.ids.length){
-      html += `<article class="ticket" style="--c:${c}"><h3>${esc(v.name)}</h3><p class="meta">Na této lince nevyjíždí.</p></article>`; return;
+      return;   // nenaplánovaná auta se nezobrazují
     }
     const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
     const links = gmapsLinks(pts);
@@ -1542,10 +1549,9 @@ function renderResults(){
         <li><span class="t">${fmt(r.start ?? R.start)}</span><span><span class="who">Výjezd z prádelny</span></span></li>
         ${r.ids.map((id,i) => { const s = byId[id], t = r.times[i];
           const wait = t.begin - t.arrive > 1 ? ` · čekání ${fmtDur(t.begin - t.arrive)}` : '';
-          return (r.breakIdx === i ? pauseRow(r) : '') + `<li><span class="t">${fmt(t.begin)}<small>–${fmt(t.begin + (R.service ?? 45))}</small></span><span>
+          return `<li><span class="t">${fmt(t.begin)}<small>–${fmt(t.begin + (R.service ?? 45))}</small></span><span>
             <span class="who">${esc(s.name || 'Zastávka '+s.n)}</span><span class="kind ${s.kind==='R'?'r':'v'}">${s.kind==='R'?'rozvoz':'vyzvednutí'}</span>
             <div class="sub">${esc(s.address)} · ${esc(klece(s.demand))}${s.window ? ' · okno '+esc(s.window) : ''}${wait}${s.note ? '<br>' + esc(s.note) : ''}</div></span></li>`; }).join('')}
-        ${r.breakIdx === r.ids.length ? pauseRow(r) : ''}
         <li><span class="t">${fmt(r.back)}</span><span><span class="who">Návrat do prádelny</span></span></li>
       </ol>
       <div class="links">${wa}</div>
