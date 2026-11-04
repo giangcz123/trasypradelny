@@ -98,6 +98,10 @@ footer.f .rep{color:var(--err)}
 .counter .ctl button{width:56px; height:56px; border-radius:999px; border:1px solid var(--line); background:var(--field); font-size:28px; line-height:1}
 .counter .val{font-size:40px; font-weight:800; min-width:56px; text-align:center; font-variant-numeric:tabular-nums}
 .counter .val.bad{color:var(--err)}
+select.cnt{appearance:auto; height:56px; min-width:96px; padding:0 10px; border:2px solid var(--blue, #2a43c9); border-radius:12px; background:var(--field); color:var(--ink);
+  font:inherit; font-size:30px; font-weight:800; text-align:center; text-align-last:center; font-variant-numeric:tabular-nums; cursor:pointer}
+.loadrow select.cnt{height:48px; min-width:80px; font-size:24px}
+select.cnt.bad{color:var(--err); border-color:var(--err)}
 .loadrow{display:flex; align-items:center; gap:10px; padding:10px 12px; border-top:1px solid var(--line)}
 .loadrow:first-child{border-top:0}
 .loadrow .nm{font-weight:600}
@@ -122,7 +126,7 @@ svg{flex:none}
 </style>
 </head>
 <body>
-<div class="wrap" id="app"><div class="center"><p>Načítám linku…</p></div></div>
+<div class="wrap" id="app"><div class="center"><p>…</p></div></div>
 <div id="sheet" hidden></div>
 <div id="toast" class="toast" role="status" hidden></div>
 
@@ -134,10 +138,164 @@ const SUPABASE_KEY = 'sb_publishable_sLzlTYwp6qs-fCaaeMLIhQ_NZpULi24';
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = m => { if (m == null || isNaN(m)) return ''; m = Math.round(m); return `${Math.floor(m/60) % 24}:${String(m%60).padStart(2,'0')}`; };
-function klece(n){ n = +n || 0; if (n === 1) return '1 klec'; if (n >= 2 && n <= 4) return `${n} klece`; return `${n} klecí`; }
+
+// ---------- jazyky (podle karty řidiče, výchozí angličtina) ----------
+const L = {
+  cs: {
+    loc:'cs-CZ', title:'Moje linka',
+    cage: n => n === 1 ? '1 klec' : (n >= 2 && n <= 4) ? `${n} klece` : `${n} klecí`,
+    badLink:'Odkaz není úplný', badLinkNote:'Otevřete prosím odkaz z poslední zprávy od vedoucího.',
+    loadErr:'Linku se nepodařilo načíst', loadErrNote:'Zkontrolujte připojení k internetu.', retry:'Zkusit znovu',
+    expLoaded:'Linku mezitím naložila expedice.', saveErr:'Nepodařilo se uložit. Zkontrolujte internet a zkuste to znovu.',
+    line:'Linka', progress:(d,n,c) => `Hotovo ${d} z ${n} · na autě ${c}`, stopsDep:(n,t) => `${n} zastávek · výjezd ${t}`,
+    callMgr:'Zavolat vedoucímu', report:'Nahlásit problém',
+    changed:'Linka byla změněna', changedNote:'Vedoucí upravil hotely nebo pořadí. Zkontroluj seznam.', gotIt:'Rozumím',
+    notDeliv:'nedoručeno', handed:(d,p) => `předal ${d} · odvezl ${p}`, select:'Vybrat', wholeRun:'Celá linka',
+    back2:'Návrat do prádelny',
+    expired:'Odkaz už neplatí', expiredNote:'Linka byla zrušena nebo je z jiného dne. Ozvěte se vedoucímu.',
+    waitLoad:'Čeká na nakládku od expedice', waitLoadNote:'Počty klecí se objeví, jakmile expedice nakládku potvrdí. Stránka se obnoví sama.',
+    selfLoad:'Expedice nenaložila – naložil jsem sám', selfLoaded:'Linku jsi naložil sám bez expedice. Vedoucí o tom ví.',
+    nextStop:'Další zastávka', plan:'Plán', delivery:'rozvoz', onCarFor:'Na autě pro tento hotel', navigate:'Navigovat', done:'Hotovo',
+    loadNoExp:'Nakládka bez expedice', between:'Mezi linkami', loadRun:n => `Naložit linku ${n}`,
+    prepNote:'Expedice připravila počty klecí. Zkontroluj je a naložené potvrď.', countNote:'Zadej, kolik klecí pro každý hotel nakládáš.',
+    selfNote:' Vedoucí uvidí, že jsi nakládal sám.', prepared:'připraveno', total:'Celkem na autě', maxCap:c => `Auto uveze nejvýš ${c}.`,
+    diffPrep:'Nakládáš jinak, než expedice připravila:', confirmLoad:'Potvrdit nakládku a jet', back:'Zpět', loadOk:'Nakládka potvrzena. Šťastnou cestu.',
+    runDone:'Linka dokončena', thanks:n => `Díky, linka ${n} je hotová.`, unloadedAt:(c,t) => `V prádelně vyloženo ${c} v ${t}.`,
+    openRun:n => `Otevřít linku ${n}`, noNext:'Další linka zatím není naplánovaná', noNextNote:'Jakmile ji vedoucí naplánuje, objeví se tu tlačítko. Stránka se obnovuje sama.',
+    returnT:'Návrat do prádelny', unloadT:'Vylož vyzvednuté klece', pickedSum:c => `Podle zadání u hotelů jsi vyzvedl ${c}.`,
+    leftClean:c => `Na autě zůstalo ${c} čistého prádla`, leftCleanNote:'Vylož je zvlášť a dej vědět expedici.',
+    unloaded:'Vyloženo špinavých klecí', byHotels:'podle hotelů', whyCount:'Proč nesedí počet? (povinné)', whyCountPh:'např. jedna klec zůstala v hotelu',
+    confirmUnload:'Potvrdit vykládku', writeWhy:'Napiš, proč počet nesedí.',
+    stopN:'Zastávka', failedT:'Nešlo doručit', staysOnCar:c => `${c} zůstává na autě.`, writeReason:'Napiš důvod.',
+    delivered:'Přivezl (předal)', onCar:'na autě', fewer:(c,h) => `Na autě zůstává ${c} pro ${h}`, more:c => `Předáváš o ${c} víc, než bylo naloženo`,
+    checkCar:'Zkontroluj auto. Pokud počet opravdu nesedí, napiš proč.', picked:'Odvezl (vyzvedl)', dirty:'špinavé prádlo',
+    reasonReq:'Důvod (povinné)', reasonPh:'např. recepce zavřená, nikdo neotvírá', whyPh:'např. hotel převzal jen část',
+    confirmFail:'Potvrdit nedoručení', confirmGo:'Potvrdit a jet dál', unfail:'Přece doručeno', handAll:n => `Předat všechny ${n}`,
+    failBtn:'Nešlo doručit', failSent:'Nedoručení nahlášeno vedoucímu.', stopOk:'Hotovo. Pokračuj na další zastávku.',
+    repT:'Nahlásit problém', repNote:'Zpráva se hned objeví vedoucímu v přehledu.', repQ:'Co se stalo?', repPh:'např. kolona na D3, zpoždění asi 20 min',
+    repSend:'Odeslat vedoucímu', cancel:'Zrušit', sent:'Odesláno vedoucímu.', count:'Počet klecí', loading:'Načítám linku…'
+  },
+  en: {
+    loc:'en-GB', title:'My run',
+    cage: n => n === 1 ? '1 cage' : `${n} cages`,
+    badLink:'The link is incomplete', badLinkNote:'Please open the link from the latest message from your manager.',
+    loadErr:'Could not load the run', loadErrNote:'Check your internet connection.', retry:'Try again',
+    expLoaded:'Dispatch has loaded this run in the meantime.', saveErr:'Could not save. Check your internet and try again.',
+    line:'Run', progress:(d,n,c) => `Done ${d} of ${n} · on vehicle ${c}`, stopsDep:(n,t) => `${n} stops · departure ${t}`,
+    callMgr:'Call manager', report:'Report a problem',
+    changed:'The run has changed', changedNote:'The manager changed the hotels or their order. Check the list.', gotIt:'OK',
+    notDeliv:'not delivered', handed:(d,p) => `delivered ${d} · picked up ${p}`, select:'Select', wholeRun:'Whole run',
+    back2:'Return to the laundry',
+    expired:'This link is no longer valid', expiredNote:'The run was cancelled or is for another day. Contact your manager.',
+    waitLoad:'Waiting for dispatch to load', waitLoadNote:'Cage counts will appear as soon as dispatch confirms loading. The page refreshes by itself.',
+    selfLoad:'Dispatch did not load – I loaded myself', selfLoaded:'You loaded this run yourself without dispatch. The manager knows.',
+    nextStop:'Next stop', plan:'Planned', delivery:'delivery', onCarFor:'On the vehicle for this hotel', navigate:'Navigate', done:'Done',
+    loadNoExp:'Loading without dispatch', between:'Between runs', loadRun:n => `Load run ${n}`,
+    prepNote:'Dispatch prepared the cage counts. Check them and confirm what you loaded.', countNote:'Enter how many cages you load for each hotel.',
+    selfNote:' The manager will see that you loaded yourself.', prepared:'prepared', total:'Total on vehicle', maxCap:c => `The vehicle carries at most ${c}.`,
+    diffPrep:'You are loading differently from what dispatch prepared:', confirmLoad:'Confirm loading and go', back:'Back', loadOk:'Loading confirmed. Safe trip.',
+    runDone:'Run finished', thanks:n => `Thanks, run ${n} is done.`, unloadedAt:(c,t) => `Unloaded ${c} at the laundry at ${t}.`,
+    openRun:n => `Open run ${n}`, noNext:'The next run is not planned yet', noNextNote:'As soon as the manager plans it, a button will appear here. The page refreshes by itself.',
+    returnT:'Return to the laundry', unloadT:'Unload the collected cages', pickedSum:c => `According to the hotels you collected ${c}.`,
+    leftClean:c => `${c} of clean laundry left on the vehicle`, leftCleanNote:'Unload them separately and tell dispatch.',
+    unloaded:'Dirty cages unloaded', byHotels:'by hotels', whyCount:'Why does the count not match? (required)', whyCountPh:'e.g. one cage stayed at the hotel',
+    confirmUnload:'Confirm unloading', writeWhy:'Write why the count does not match.',
+    stopN:'Stop', failedT:'Could not deliver', staysOnCar:c => `${c} stays on the vehicle.`, writeReason:'Write the reason.',
+    delivered:'Delivered (handed over)', onCar:'on vehicle', fewer:(c,h) => `${c} for ${h} still on the vehicle`, more:c => `You are handing over ${c} more than loaded`,
+    checkCar:'Check the vehicle. If the count really does not match, write why.', picked:'Picked up (collected)', dirty:'dirty laundry',
+    reasonReq:'Reason (required)', reasonPh:'e.g. reception closed, nobody answers', whyPh:'e.g. the hotel took only part',
+    confirmFail:'Confirm not delivered', confirmGo:'Confirm and continue', unfail:'Delivered after all', handAll:n => `Hand over all ${n}`,
+    failBtn:'Could not deliver', failSent:'Non-delivery reported to the manager.', stopOk:'Done. Continue to the next stop.',
+    repT:'Report a problem', repNote:'The message appears to the manager right away.', repQ:'What happened?', repPh:'e.g. traffic jam, about 20 min late',
+    repSend:'Send to manager', cancel:'Cancel', sent:'Sent to the manager.', count:'Number of cages', loading:'Loading the run…'
+  },
+  vi: {
+    loc:'vi-VN', title:'Tuyến của tôi',
+    cage: n => `${n} lồng`,
+    badLink:'Đường dẫn không đầy đủ', badLinkNote:'Hãy mở đường dẫn trong tin nhắn mới nhất của quản lý.',
+    loadErr:'Không tải được tuyến', loadErrNote:'Hãy kiểm tra kết nối internet.', retry:'Thử lại',
+    expLoaded:'Bộ phận xuất hàng đã chất hàng cho tuyến này.', saveErr:'Không lưu được. Kiểm tra internet và thử lại.',
+    line:'Tuyến', progress:(d,n,c) => `Xong ${d}/${n} · trên xe ${c}`, stopsDep:(n,t) => `${n} điểm dừng · xuất phát ${t}`,
+    callMgr:'Gọi quản lý', report:'Báo sự cố',
+    changed:'Tuyến đã thay đổi', changedNote:'Quản lý đã sửa khách sạn hoặc thứ tự. Hãy kiểm tra danh sách.', gotIt:'Đã hiểu',
+    notDeliv:'chưa giao', handed:(d,p) => `đã giao ${d} · đã lấy ${p}`, select:'Chọn', wholeRun:'Toàn tuyến',
+    back2:'Về xưởng giặt',
+    expired:'Đường dẫn không còn hiệu lực', expiredNote:'Tuyến đã bị hủy hoặc thuộc ngày khác. Hãy liên hệ quản lý.',
+    waitLoad:'Đang chờ bộ phận xuất hàng chất hàng', waitLoadNote:'Số lồng sẽ hiện khi bộ phận xuất hàng xác nhận. Trang tự cập nhật.',
+    selfLoad:'Xuất hàng chưa chất – tôi tự chất', selfLoaded:'Bạn đã tự chất hàng cho tuyến này. Quản lý đã biết.',
+    nextStop:'Điểm dừng tiếp theo', plan:'Dự kiến', delivery:'giao hàng', onCarFor:'Trên xe cho khách sạn này', navigate:'Dẫn đường', done:'Xong',
+    loadNoExp:'Tự chất hàng', between:'Giữa các tuyến', loadRun:n => `Chất hàng tuyến ${n}`,
+    prepNote:'Bộ phận xuất hàng đã chuẩn bị số lồng. Hãy kiểm tra và xác nhận.', countNote:'Nhập số lồng chất cho từng khách sạn.',
+    selfNote:' Quản lý sẽ thấy bạn tự chất hàng.', prepared:'đã chuẩn bị', total:'Tổng trên xe', maxCap:c => `Xe chở tối đa ${c}.`,
+    diffPrep:'Bạn chất khác với số đã chuẩn bị:', confirmLoad:'Xác nhận chất hàng và đi', back:'Quay lại', loadOk:'Đã xác nhận chất hàng. Chúc thượng lộ bình an.',
+    runDone:'Tuyến đã hoàn thành', thanks:n => `Cảm ơn, tuyến ${n} đã xong.`, unloadedAt:(c,t) => `Đã dỡ ${c} tại xưởng lúc ${t}.`,
+    openRun:n => `Mở tuyến ${n}`, noNext:'Tuyến tiếp theo chưa được lên kế hoạch', noNextNote:'Khi quản lý lên kế hoạch, nút sẽ hiện ở đây. Trang tự cập nhật.',
+    returnT:'Về xưởng giặt', unloadT:'Dỡ các lồng đã lấy', pickedSum:c => `Theo số nhập tại khách sạn, bạn đã lấy ${c}.`,
+    leftClean:c => `Còn ${c} đồ sạch trên xe`, leftCleanNote:'Hãy dỡ riêng và báo bộ phận xuất hàng.',
+    unloaded:'Số lồng bẩn đã dỡ', byHotels:'theo khách sạn', whyCount:'Vì sao số lượng không khớp? (bắt buộc)', whyCountPh:'vd. một lồng còn ở khách sạn',
+    confirmUnload:'Xác nhận dỡ hàng', writeWhy:'Hãy ghi vì sao số lượng không khớp.',
+    stopN:'Điểm dừng', failedT:'Không giao được', staysOnCar:c => `${c} vẫn ở trên xe.`, writeReason:'Hãy ghi lý do.',
+    delivered:'Đã giao (mang đến)', onCar:'trên xe', fewer:(c,h) => `Còn ${c} cho ${h} trên xe`, more:c => `Bạn giao dư ${c} so với số đã chất`,
+    checkCar:'Hãy kiểm tra xe. Nếu số lượng thật sự không khớp, hãy ghi lý do.', picked:'Đã lấy (mang đi)', dirty:'đồ bẩn',
+    reasonReq:'Lý do (bắt buộc)', reasonPh:'vd. lễ tân đóng cửa, không ai mở', whyPh:'vd. khách sạn chỉ nhận một phần',
+    confirmFail:'Xác nhận không giao được', confirmGo:'Xác nhận và đi tiếp', unfail:'Đã giao được', handAll:n => `Giao tất cả ${n}`,
+    failBtn:'Không giao được', failSent:'Đã báo quản lý việc không giao được.', stopOk:'Xong. Đi tiếp điểm dừng tiếp theo.',
+    repT:'Báo sự cố', repNote:'Tin nhắn hiện ngay cho quản lý.', repQ:'Chuyện gì đã xảy ra?', repPh:'vd. kẹt xe, trễ khoảng 20 phút',
+    repSend:'Gửi cho quản lý', cancel:'Hủy', sent:'Đã gửi cho quản lý.', count:'Số lồng', loading:'Đang tải tuyến…'
+  },
+  uk: {
+    loc:'uk-UA', title:'Мій маршрут',
+    cage: n => { const a = n % 10, b = n % 100; return n === 1 ? '1 клітка' : (a === 1 && b !== 11) ? `${n} клітка` : (a >= 2 && a <= 4 && (b < 12 || b > 14)) ? `${n} клітки` : `${n} кліток`; },
+    badLink:'Посилання неповне', badLinkNote:'Відкрийте посилання з останнього повідомлення від керівника.',
+    loadErr:'Не вдалося завантажити маршрут', loadErrNote:'Перевірте підключення до інтернету.', retry:'Спробувати ще раз',
+    expLoaded:'Експедиція тим часом завантажила цей маршрут.', saveErr:'Не вдалося зберегти. Перевірте інтернет і спробуйте ще раз.',
+    line:'Лінія', progress:(d,n,c) => `Готово ${d} з ${n} · в авто ${c}`, stopsDep:(n,t) => `зупинок: ${n} · виїзд ${t}`,
+    callMgr:'Подзвонити керівнику', report:'Повідомити про проблему',
+    changed:'Маршрут змінено', changedNote:'Керівник змінив готелі або порядок. Перевірте список.', gotIt:'Зрозуміло',
+    notDeliv:'не доставлено', handed:(d,p) => `передав ${d} · забрав ${p}`, select:'Вибрати', wholeRun:'Увесь маршрут',
+    back2:'Повернення до пральні',
+    expired:'Посилання більше не дійсне', expiredNote:'Маршрут скасовано або він на інший день. Зверніться до керівника.',
+    waitLoad:'Очікує завантаження від експедиції', waitLoadNote:'Кількість кліток з’явиться, щойно експедиція підтвердить завантаження. Сторінка оновлюється сама.',
+    selfLoad:'Експедиція не завантажила – завантажив сам', selfLoaded:'Ви завантажили маршрут самі без експедиції. Керівник про це знає.',
+    nextStop:'Наступна зупинка', plan:'План', delivery:'доставка', onCarFor:'В авто для цього готелю', navigate:'Навігація', done:'Готово',
+    loadNoExp:'Завантаження без експедиції', between:'Між лініями', loadRun:n => `Завантажити лінію ${n}`,
+    prepNote:'Експедиція підготувала кількість кліток. Перевірте та підтвердіть.', countNote:'Вкажіть, скільки кліток вантажите для кожного готелю.',
+    selfNote:' Керівник побачить, що ви вантажили самі.', prepared:'підготовлено', total:'Усього в авто', maxCap:c => `Авто вміщує щонайбільше ${c}.`,
+    diffPrep:'Ви вантажите інакше, ніж підготувала експедиція:', confirmLoad:'Підтвердити завантаження і їхати', back:'Назад', loadOk:'Завантаження підтверджено. Щасливої дороги.',
+    runDone:'Лінію завершено', thanks:n => `Дякуємо, лінію ${n} завершено.`, unloadedAt:(c,t) => `У пральні вивантажено ${c} о ${t}.`,
+    openRun:n => `Відкрити лінію ${n}`, noNext:'Наступна лінія ще не запланована', noNextNote:'Щойно керівник її запланує, тут з’явиться кнопка. Сторінка оновлюється сама.',
+    returnT:'Повернення до пральні', unloadT:'Вивантажте забрані клітки', pickedSum:c => `За даними з готелів ви забрали ${c}.`,
+    leftClean:c => `В авто залишилось ${c} чистої білизни`, leftCleanNote:'Вивантажте їх окремо і повідомте експедицію.',
+    unloaded:'Вивантажено брудних кліток', byHotels:'за готелями', whyCount:'Чому кількість не збігається? (обов’язково)', whyCountPh:'напр. одна клітка залишилась у готелі',
+    confirmUnload:'Підтвердити вивантаження', writeWhy:'Напишіть, чому кількість не збігається.',
+    stopN:'Зупинка', failedT:'Не вдалося доставити', staysOnCar:c => `${c} залишається в авто.`, writeReason:'Напишіть причину.',
+    delivered:'Привіз (передав)', onCar:'в авто', fewer:(c,h) => `В авто залишається ${c} для ${h}`, more:c => `Ви передаєте на ${c} більше, ніж завантажено`,
+    checkCar:'Перевірте авто. Якщо кількість справді не збігається, напишіть чому.', picked:'Відвіз (забрав)', dirty:'брудна білизна',
+    reasonReq:'Причина (обов’язково)', reasonPh:'напр. рецепція зачинена, ніхто не відчиняє', whyPh:'напр. готель прийняв лише частину',
+    confirmFail:'Підтвердити недоставку', confirmGo:'Підтвердити і їхати далі', unfail:'Все ж доставлено', handAll:n => `Передати всі ${n}`,
+    failBtn:'Не вдалося доставити', failSent:'Про недоставку повідомлено керівнику.', stopOk:'Готово. Їдьте до наступної зупинки.',
+    repT:'Повідомити про проблему', repNote:'Повідомлення одразу побачить керівник.', repQ:'Що сталося?', repPh:'напр. затор, запізнення приблизно 20 хв',
+    repSend:'Надіслати керівнику', cancel:'Скасувати', sent:'Надіслано керівнику.', count:'Кількість кліток', loading:'Завантажую маршрут…'
+  }
+};
+let lang = 'en';
+const T = (k, ...a) => { const v = (L[lang] || L.en)[k] ?? L.en[k]; return typeof v === 'function' ? v(...a) : v; };
+const klece = n => T('cage', +n || 0);
+function setLang(l){
+  lang = L[l] ? l : 'en';
+  document.documentElement.lang = lang;
+  document.title = T('title') + ' – D&D laundry';
+}
+setLang((navigator.language || 'en').slice(0, 2));   // než se načte linka
 function dayLabel(iso){ if (!iso) return ''; const [y,m,d] = iso.split('-').map(Number);
-  const s = new Date(y, m-1, d).toLocaleDateString('cs-CZ', { weekday:'short', day:'numeric', month:'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
+  const s = new Date(y, m-1, d).toLocaleDateString(T('loc'), { weekday:'short', day:'numeric', month:'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }
 const timeOf = iso => { if (!iso) return ''; const d = new Date(iso); return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; };
+// výběr počtu klecí z menu
+function cnt(id, val, max, label, bad){
+  const top = Math.max(max, +val || 0); let o = '';
+  for (let n = 0; n <= top; n++) o += `<option value="${n}" ${+val === n ? 'selected' : ''}>${n}</option>`;
+  return `<select class="cnt ${bad ? 'bad' : ''}" id="${id}" aria-label="${esc(label)}">${o}</select>`;
+}
 const icon = {
   nav:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg>',
   ok:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>',
@@ -150,8 +308,9 @@ const icon = {
 let toastT;
 function toast(t){ const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3500); }
 
+$('app').innerHTML = `<div class="center"><p>${esc(T('loading'))}</p></div>`;
 const token = new URLSearchParams(location.search).get('r');
-if (!token || !window.supabase) { $('app').innerHTML = `<div class="center"><div><h1>Odkaz není úplný</h1><p class="note">Otevřete prosím odkaz z poslední zprávy od vedoucího.</p></div></div>`; return; }
+if (!token || !window.supabase) { $('app').innerHTML = `<div class="center"><div><h1>${T('badLink')}</h1><p class="note">${T('badLinkNote')}</p></div></div>`; return; }
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession:false } });
 
 let run = null, sel = null, busy = false, sheetOpen = false;
@@ -162,9 +321,9 @@ async function load(quiet){
     const { data, error } = await sb.rpc('driver_get', { p_token: token });
     if (error) throw error;
     if (!data) { run = null; render(); return; }
-    run = data;
+    run = data; setLang(((run.plan || {}).driver || {}).lang || 'en');
     if (!sheetOpen) render();
-  } catch(e){ if (!quiet) { $('app').innerHTML = `<div class="center"><div><h1>Linku se nepodařilo načíst</h1><p class="note">Zkontrolujte připojení k internetu.</p><button class="btn blue" id="retry" style="margin-top:12px">Zkusit znovu</button></div></div>`; $('retry').onclick = () => load(); } }
+  } catch(e){ if (!quiet) { $('app').innerHTML = `<div class="center"><div><h1>${T('loadErr')}</h1><p class="note">${T('loadErrNote')}</p><button class="btn blue" id="retry" style="margin-top:12px">${T('retry')}</button></div></div>`; $('retry').onclick = () => load(); } }
 }
 async function save(field, value){
   busy = true;
@@ -172,7 +331,7 @@ async function save(field, value){
     const { data, error } = await sb.rpc('driver_save', { p_token: token, p_field: field, p_value: value });
     if (error) throw error;
     run = data; return true;
-  } catch(e){ toast(/naložila expedice/i.test(e.message || '') ? 'Linku mezitím naložila expedice.' : 'Nepodařilo se uložit. Zkontrolujte internet a zkuste to znovu.'); await load(true); return false; }
+  } catch(e){ toast(/naložila expedice/i.test(e.message || '') ? T('expLoaded') : T('saveErr')); await load(true); return false; }
   finally { busy = false; }
 }
 
@@ -198,63 +357,64 @@ const navUrl = s => `https://www.google.com/maps/dir/?api=1&travelmode=driving&d
 function header(){
   const st = stops(), done = st.filter(s => isDone(s.id)).length, t = totals();
   const pct = st.length ? Math.round(done / st.length * 100) : 0;
+  const veh = [P().vehicle?.name, P().vehicle?.plate].filter(Boolean).join(' · ');
   return `<header class="h">
-    <div class="t"><h1>Linka ${esc(run.linka)} · ${esc(P().vehicle?.name || '')}</h1><span style="color:var(--head-muted); font-size:14px">${esc(dayLabel(run.day))}</span></div>
-    <div class="sub"><span>${run.load ? `Hotovo ${done} z ${st.length} · na autě ${klece(t.onCar)}` : `${st.length} zastávek · výjezd ${fmt(P().start)}`}</span><span>${P().driver?.name ? esc(P().driver.name) : ''}</span></div>
+    <div class="t"><h1>${T('line')} ${esc(run.linka)} · ${esc(veh)}</h1><span style="color:var(--head-muted); font-size:14px">${esc(dayLabel(run.day))}</span></div>
+    <div class="sub"><span>${run.load ? T('progress', done, st.length, klece(t.onCar)) : T('stopsDep', st.length, fmt(P().start))}</span><span>${P().driver?.name ? esc(P().driver.name) : ''}</span></div>
     <div class="track" aria-hidden="true"><i style="width:${pct}%"></i></div>
   </header>`;
 }
 function footer(){
   const ph = P().managerPhone;
-  return `<footer class="f">${ph ? `<a href="tel:${esc(ph.replace(/\s/g,''))}">Zavolat vedoucímu</a>` : '<span></span>'}<button class="rep" id="report">Nahlásit problém</button></footer>`;
+  return `<footer class="f">${ph ? `<a href="tel:${esc(ph.replace(/\s/g,''))}">${T('callMgr')}</a>` : '<span></span>'}<button class="rep" id="report">${T('report')}</button></footer>`;
 }
 function changedBar(){
   let seen = 0; try { seen = +localStorage.getItem(SEEN) || 0; } catch(_){}
   if (!seen) { try { localStorage.setItem(SEEN, run.plan_version); } catch(_){} return ''; }
   if (run.plan_version <= seen) return '';
-  return `<div class="bar warn" role="alert">${icon.warn}<div><strong>Linka byla změněna</strong>Vedoucí upravil hotely nebo pořadí. Zkontroluj seznam.</div><button id="seen">Rozumím</button></div>`;
+  return `<div class="bar warn" role="alert">${icon.warn}<div><strong>${T('changed')}</strong>${T('changedNote')}</div><button id="seen">${T('gotIt')}</button></div>`;
 }
 function stopList(curId){
   const P0 = P(); let html = '';
   stops().forEach((s, i) => {
     const p = prog(s.id), cls = p ? (p.state === 'failed' ? 'failed' : 'done') : (s.id === curId ? 'cur' : '');
     const badge = p ? (p.state === 'failed' ? icon.x : icon.okS) : (i + 1);
-    const sub = p ? (p.state === 'failed' ? `nedoručeno · ${esc(p.reason || '')}` : `předal ${+p.delivered || 0} · odvezl ${+p.picked || 0}`) : esc(s.address);
+    const sub = p ? (p.state === 'failed' ? `${T('notDeliv')} · ${esc(p.reason || '')}` : T('handed', +p.delivered || 0, +p.picked || 0)) : esc(s.address);
     const right = p ? `<span class="tm">${esc(timeOf(p.at))}</span>` : `${run.load ? `<span class="pill">${klece(loaded(s.id))}</span>` : ''}<span class="tm">${fmt(s.begin)}</span>`;
     const inner = `<span class="num">${badge}</span><span class="nm"><span>${esc(s.name || s.address)}</span><small>${sub}</small></span>${right}`;
-    html += `<li class="${cls}">${!p && run.load ? `<button class="pick" data-sel="${esc(s.id)}" aria-label="Vybrat ${esc(s.name)}">${inner}</button>` : inner}</li>`;
+    html += `<li class="${cls}">${!p && run.load ? `<button class="pick" data-sel="${esc(s.id)}" aria-label="${T('select')} ${esc(s.name)}">${inner}</button>` : inner}</li>`;
   });
-  return `<ol class="stops" aria-label="Celá linka">${html}<li><span class="num">P</span><span class="nm"><span>Návrat do prádelny</span><small>D&amp;D laundry, Vidov</small></span><span class="tm">${fmt(P0.back)}</span></li></ol>`;
+  return `<ol class="stops" aria-label="${T('wholeRun')}">${html}<li><span class="num">P</span><span class="nm"><span>${T('back2')}</span><small>D&amp;D laundry, Vidov</small></span><span class="tm">${fmt(P0.back)}</span></li></ol>`;
 }
 
 function render(){
   const app = $('app');
-  if (!run) { app.innerHTML = `<div class="center"><div><h1>Odkaz už neplatí</h1><p class="note">Linka byla zrušena nebo je z jiného dne. Ozvěte se vedoucímu.</p></div></div>`; return; }
+  if (!run) { app.innerHTML = `<div class="center"><div><h1>${T('expired')}</h1><p class="note">${T('expiredNote')}</p></div></div>`; return; }
   const P0 = P();
   // nakládka
   if (!run.load) {
     if (P0.loader === 'ridic') return renderLoad(false);
     app.innerHTML = header() + `<main>${changedBar()}
-      <div class="bar info" role="status">${icon.cage}<div><strong>Čeká na nakládku od expedice</strong>Počty klecí se objeví, jakmile expedice nakládku potvrdí. Stránka se obnoví sama.</div></div>
+      <div class="bar info" role="status">${icon.cage}<div><strong>${T('waitLoad')}</strong>${T('waitLoadNote')}</div></div>
       ${stopList(null)}
-      <button class="btn line" id="selfLoad">Expedice nenaložila – naložil jsem sám</button>
+      <button class="btn line" id="selfLoad">${T('selfLoad')}</button>
     </main>` + footer();
     bind(); return;
   }
-  const cur = current(), t = totals();
+  const cur = current();
   if (!cur) return renderFinish();
   const left = loaded(cur.id);
   app.innerHTML = header() + `<main>${changedBar()}
-    ${run.load.fallback ? `<div class="bar warn">${icon.warn}<div>Linku jsi naložil sám bez expedice. Vedoucí o tom ví.</div></div>` : ''}
-    <section class="card next" aria-label="Další zastávka">
-      <span class="eyebrow">Další zastávka · ${stops().indexOf(cur) + 1}</span>
+    ${run.load.fallback ? `<div class="bar warn">${icon.warn}<div>${T('selfLoaded')}</div></div>` : ''}
+    <section class="card next" aria-label="${T('nextStop')}">
+      <span class="eyebrow">${T('nextStop')} · ${stops().indexOf(cur) + 1}</span>
       <h2 class="big">${esc(cur.name || cur.address)}</h2>
       <span class="addr">${esc(cur.address)}</span>
-      <div class="meta"><span>Plán: <b>${fmt(cur.begin)}</b></span>${cur.kind === 'R' ? '<span>rozvoz</span>' : ''}</div>
+      <div class="meta"><span>${T('plan')}: <b>${fmt(cur.begin)}</b></span>${cur.kind === 'R' ? `<span>${T('delivery')}</span>` : ''}</div>
       ${cur.note ? `<div class="note">${esc(cur.note)}</div>` : ''}
-      <div class="cage">${icon.cage}<span>Na autě pro tento hotel: <b>${klece(left)}</b></span></div>
-      <a class="btn blue" href="${navUrl(cur)}" target="_blank" rel="noopener">${icon.nav} Navigovat</a>
-      <button class="btn go" id="done" data-id="${esc(cur.id)}">${icon.ok} Hotovo</button>
+      <div class="cage">${icon.cage}<span>${T('onCarFor')}: <b>${klece(left)}</b></span></div>
+      <a class="btn blue" href="${navUrl(cur)}" target="_blank" rel="noopener">${icon.nav} ${T('navigate')}</a>
+      <button class="btn go" id="done" data-id="${esc(cur.id)}">${icon.ok} ${T('done')}</button>
     </section>
     ${stopList(cur.id)}
   </main>` + footer();
@@ -269,22 +429,21 @@ function renderLoad(fallback){
     const sum = Object.values(counts).reduce((a,b) => a + b, 0);
     const diffs = stops().filter(s => prep[s.id] != null && +prep[s.id] !== counts[s.id]);
     $('app').innerHTML = header() + `<main>
-      <div class="card"><span class="eyebrow">${fallback ? 'Nakládka bez expedice' : 'Mezi linkami'}</span>
-        <h2 class="big" style="font-size:22px">Naložit linku ${esc(run.linka)}</h2>
-        <span class="note">${run.prep ? 'Expedice připravila počty klecí. Zkontroluj je a naložené potvrď.' : 'Zadej, kolik klecí pro každý hotel nakládáš.'}${fallback ? ' Vedoucí uvidí, že jsi nakládal sám.' : ''}</span>
+      <div class="card"><span class="eyebrow">${fallback ? T('loadNoExp') : T('between')}</span>
+        <h2 class="big" style="font-size:22px">${T('loadRun', esc(run.linka))}</h2>
+        <span class="note">${run.prep ? T('prepNote') : T('countNote')}${fallback ? T('selfNote') : ''}</span>
       </div>
-      <div class="box">${stops().map((s,i) => `<div class="loadrow"><span class="nm" style="flex:1">${i+1}. ${esc(s.name || s.address)}${prep[s.id] != null && +prep[s.id] !== counts[s.id] ? `<small>připraveno ${klece(prep[s.id])}</small>` : ''}</span>
-        <button data-m="${esc(s.id)}" aria-label="${esc(s.name)} méně">−</button><span class="v">${counts[s.id]}</span><button data-p="${esc(s.id)}" aria-label="${esc(s.name)} více">+</button></div>`).join('')}</div>
-      <div class="sum"><span>Celkem na autě</span><span><b>${sum}</b>${cap ? ` z ${cap}` : ''}</span></div>
-      ${cap && sum > cap ? `<div class="bar err">${icon.warn}<div>Auto uveze nejvýš ${klece(cap)}.</div></div>` : ''}
-      ${diffs.length ? `<div class="bar warn">${icon.warn}<div>Nakládáš jinak, než expedice připravila: ${diffs.map(s => esc(s.name)).join(', ')}.</div></div>` : ''}
-      <button class="btn blue" id="confirmLoad" ${sum ? '' : 'disabled'}>Potvrdit nakládku a jet</button>
-      ${fallback ? '<button class="btn line" id="backLoad">Zpět</button>' : ''}
+      <div class="box">${stops().map((s,i) => `<div class="loadrow"><span class="nm" style="flex:1">${i+1}. ${esc(s.name || s.address)}${prep[s.id] != null && +prep[s.id] !== counts[s.id] ? `<small>${T('prepared')} ${klece(prep[s.id])}</small>` : ''}</span>
+        ${cnt('c_' + i, counts[s.id], 19, T('count') + ' – ' + (s.name || s.address))}</div>`).join('')}</div>
+      <div class="sum"><span>${T('total')}</span><span><b>${sum}</b>${cap ? ` / ${cap}` : ''}</span></div>
+      ${cap && sum > cap ? `<div class="bar err">${icon.warn}<div>${T('maxCap', klece(cap))}</div></div>` : ''}
+      ${diffs.length ? `<div class="bar warn">${icon.warn}<div>${T('diffPrep')} ${diffs.map(s => esc(s.name)).join(', ')}.</div></div>` : ''}
+      <button class="btn blue" id="confirmLoad" ${sum ? '' : 'disabled'}>${T('confirmLoad')}</button>
+      ${fallback ? `<button class="btn line" id="backLoad">${T('back')}</button>` : ''}
     </main>` + footer();
-    $('app').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { counts[b.dataset.m] = Math.max(0, counts[b.dataset.m] - 1); draw(); });
-    $('app').querySelectorAll('[data-p]').forEach(b => b.onclick = () => { counts[b.dataset.p]++; draw(); });
+    stops().forEach((s, i) => { $('c_' + i).onchange = e => { counts[s.id] = +e.target.value; draw(); }; });
     $('confirmLoad').onclick = async () => { $('confirmLoad').disabled = true;
-      if (await save('load', { by:'ridic', fallback: !!fallback, counts })) { toast('Nakládka potvrzena. Šťastnou cestu.'); render(); } };
+      if (await save('load', { by:'ridic', fallback: !!fallback, counts })) { toast(T('loadOk')); render(); } };
     if ($('backLoad')) $('backLoad').onclick = render;
     $('report').onclick = reportSheet;
   };
@@ -292,15 +451,15 @@ function renderLoad(fallback){
 }
 
 function renderFinish(){
-  const t = totals(), P0 = P();
+  const t = totals();
   if (run.finish) {
     $('app').innerHTML = header() + `<main>
-      <div class="card"><span class="eyebrow" style="color:var(--go-text)">Linka dokončena</span>
-        <h2 class="big" style="font-size:22px">Díky, linka ${esc(run.linka)} je hotová.</h2>
-        <span class="note">V prádelně vyloženo ${klece(run.finish.unloaded)} v ${esc(timeOf(run.finish.at))}.</span></div>
+      <div class="card"><span class="eyebrow" style="color:var(--go-text)">${T('runDone')}</span>
+        <h2 class="big" style="font-size:22px">${T('thanks', esc(run.linka))}</h2>
+        <span class="note">${T('unloadedAt', klece(run.finish.unloaded), esc(timeOf(run.finish.at)))}</span></div>
       ${run.next_token
-        ? `<a class="btn blue" href="?r=${esc(run.next_token)}">Otevřít linku ${esc(run.linka + 1)}</a>`
-        : `<div class="bar info">${icon.clock}<div><strong>Další linka zatím není naplánovaná</strong>Jakmile ji vedoucí naplánuje, objeví se tu tlačítko. Stránka se obnovuje sama.</div></div>`}
+        ? `<a class="btn blue" href="?r=${esc(run.next_token)}">${T('openRun', esc(run.linka + 1))}</a>`
+        : `<div class="bar info">${icon.clock}<div><strong>${T('noNext')}</strong>${T('noNextNote')}</div></div>`}
       ${stopList(null)}
     </main>` + footer();
     bind(); return;
@@ -308,23 +467,22 @@ function renderFinish(){
   let unloaded = t.picked;
   const draw = () => {
     $('app').innerHTML = header() + `<main>
-      <div class="card"><span class="eyebrow">Návrat do prádelny</span>
-        <h2 class="big" style="font-size:22px">Vylož vyzvednuté klece</h2>
-        <span class="note">Podle zadání u hotelů jsi vyzvedl ${klece(t.picked)}.</span></div>
-      ${t.onCar ? `<div class="bar warn">${icon.warn}<div><strong>Na autě zůstalo ${klece(t.onCar)} čistého prádla</strong>Vylož je zvlášť a dej vědět expedici.</div></div>` : ''}
-      <div class="counter"><div class="hd"><span>Vyloženo špinavých klecí</span><span class="note">podle hotelů: ${t.picked}</span></div>
-        <div class="ctl"><button id="um" aria-label="Méně">−</button><span class="val ${unloaded !== t.picked ? 'bad' : ''}">${unloaded}</span><button id="up" aria-label="Více">+</button></div></div>
-      ${unloaded !== t.picked ? `<label class="f req">Proč nesedí počet? (povinné)<input id="ureason" required placeholder="např. jedna klec zůstala v hotelu"></label>` : ''}
-      <button class="btn go" id="finish">${icon.ok} Potvrdit vykládku</button>
+      <div class="card"><span class="eyebrow">${T('returnT')}</span>
+        <h2 class="big" style="font-size:22px">${T('unloadT')}</h2>
+        <span class="note">${T('pickedSum', klece(t.picked))}</span></div>
+      ${t.onCar ? `<div class="bar warn">${icon.warn}<div><strong>${T('leftClean', klece(t.onCar))}</strong>${T('leftCleanNote')}</div></div>` : ''}
+      <div class="counter"><div class="hd"><span>${T('unloaded')}</span><span class="note">${T('byHotels')}: ${t.picked}</span></div>
+        <div class="ctl">${cnt('uval', unloaded, Math.max(40, t.picked + 10), T('unloaded'), unloaded !== t.picked)}</div></div>
+      ${unloaded !== t.picked ? `<label class="f req">${T('whyCount')}<input id="ureason" required placeholder="${esc(T('whyCountPh'))}"></label>` : ''}
+      <button class="btn go" id="finish">${icon.ok} ${T('confirmUnload')}</button>
       ${stopList(null)}
     </main>` + footer();
-    $('um').onclick = () => { unloaded = Math.max(0, unloaded - 1); draw(); };
-    $('up').onclick = () => { unloaded++; draw(); };
+    $('uval').onchange = e => { unloaded = +e.target.value; draw(); };
     $('finish').onclick = async () => {
       const reason = $('ureason') ? $('ureason').value.trim() : '';
-      if (unloaded !== t.picked && !reason) { $('ureason').focus(); toast('Napiš, proč počet nesedí.'); return; }
+      if (unloaded !== t.picked && !reason) { $('ureason').focus(); toast(T('writeWhy')); return; }
       $('finish').disabled = true;
-      if (await save('finish', { unloaded, expected: t.picked, leftClean: t.onCar, reason })) { toast('Linka dokončena.'); render(); }
+      if (await save('finish', { unloaded, expected: t.picked, leftClean: t.onCar, reason })) { toast(T('runDone') + '.'); render(); }
     };
     $('report').onclick = reportSheet;
   };
@@ -350,29 +508,28 @@ function doneSheet(id){
   const draw = () => {
     const mismatch = !failed && deliv !== onCar;
     openSheet(`
-      <div><span class="eyebrow" style="color:var(--muted)">Zastávka ${stops().indexOf(s) + 1}</span><h2 class="big">${esc(s.name || s.address)}</h2></div>
-      ${failed ? `<div class="bar err">${icon.warn}<div><strong>Nešlo doručit</strong>${onCar ? `${klece(onCar)} zůstává na autě.` : ''} Napiš důvod.</div></div>` : `
-      <div class="counter"><div class="hd"><span>Přivezl (předal)</span><span class="note">na autě: <b style="color:var(--ink)">${onCar}</b></span></div>
-        <div class="ctl"><button data-a="d-" aria-label="Předal o jednu méně">−</button><span class="val ${mismatch ? 'bad' : ''}">${deliv}</span><button data-a="d+" aria-label="Předal o jednu více">+</button></div></div>
-      ${mismatch ? `<div class="bar err" role="alert">${icon.warn}<div><strong>${deliv < onCar ? `Na autě zůstává ${klece(onCar - deliv)} pro ${esc(s.name)}` : `Předáváš o ${klece(deliv - onCar)} víc, než bylo naloženo`}</strong>Zkontroluj auto. Pokud počet opravdu nesedí, napiš proč.</div></div>` : ''}
-      <div class="counter"><div class="hd"><span>Odvezl (vyzvedl)</span><span class="note">špinavé prádlo</span></div>
-        <div class="ctl"><button data-a="p-" aria-label="Odvezl o jednu méně">−</button><span class="val">${picked}</span><button data-a="p+" aria-label="Odvezl o jednu více">+</button></div></div>`}
-      ${failed || mismatch ? `<label class="f req">${failed ? 'Důvod (povinné)' : 'Proč nesedí počet? (povinné)'}<input id="reason" required placeholder="${failed ? 'např. recepce zavřená, nikdo neotvírá' : 'např. hotel převzal jen část'}"></label>` : ''}
-      <button class="btn go" id="ok">${icon.ok} ${failed ? 'Potvrdit nedoručení' : 'Potvrdit a jet dál'}</button>
-      <div class="row2">${failed ? '<button class="btn line" id="unfail">Přece doručeno</button>' : `${mismatch ? `<button class="btn line" id="all">Předat všechny ${onCar}</button>` : '<button class="btn danger" id="fail">Nešlo doručit</button>'}`}<button class="btn line" id="back">Zpět</button></div>`);
-    const sh = $('sheet');
-    sh.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { const a = b.dataset.a;
-      if (a === 'd-') deliv = Math.max(0, deliv - 1); if (a === 'd+') deliv++; if (a === 'p-') picked = Math.max(0, picked - 1); if (a === 'p+') picked++; keep(draw); });
+      <div><span class="eyebrow" style="color:var(--muted)">${T('stopN')} ${stops().indexOf(s) + 1}</span><h2 class="big">${esc(s.name || s.address)}</h2></div>
+      ${failed ? `<div class="bar err">${icon.warn}<div><strong>${T('failedT')}</strong>${onCar ? T('staysOnCar', klece(onCar)) : ''} ${T('writeReason')}</div></div>` : `
+      <div class="counter"><div class="hd"><span>${T('delivered')}</span><span class="note">${T('onCar')}: <b style="color:var(--ink)">${onCar}</b></span></div>
+        <div class="ctl">${cnt('dval', deliv, 19, T('delivered'), mismatch)}</div></div>
+      ${mismatch ? `<div class="bar err" role="alert">${icon.warn}<div><strong>${deliv < onCar ? T('fewer', klece(onCar - deliv), esc(s.name)) : T('more', klece(deliv - onCar))}</strong>${T('checkCar')}</div></div>` : ''}
+      <div class="counter"><div class="hd"><span>${T('picked')}</span><span class="note">${T('dirty')}</span></div>
+        <div class="ctl">${cnt('pval', picked, 19, T('picked'))}</div></div>`}
+      ${failed || mismatch ? `<label class="f req">${failed ? T('reasonReq') : T('whyCount')}<input id="reason" required placeholder="${esc(failed ? T('reasonPh') : T('whyPh'))}"></label>` : ''}
+      <button class="btn go" id="ok">${icon.ok} ${failed ? T('confirmFail') : T('confirmGo')}</button>
+      <div class="row2">${failed ? `<button class="btn line" id="unfail">${T('unfail')}</button>` : `${mismatch ? `<button class="btn line" id="all">${T('handAll', onCar)}</button>` : `<button class="btn danger" id="fail">${T('failBtn')}</button>`}`}<button class="btn line" id="back">${T('back')}</button></div>`);
+    if ($('dval')) $('dval').onchange = e => { deliv = +e.target.value; keep(draw); };
+    if ($('pval')) $('pval').onchange = e => { picked = +e.target.value; keep(draw); };
     $('back').onclick = closeSheet;
     if ($('all')) $('all').onclick = () => { deliv = onCar; keep(draw); };
     if ($('fail')) $('fail').onclick = () => { failed = true; keep(draw); };
     if ($('unfail')) $('unfail').onclick = () => { failed = false; keep(draw); };
     $('ok').onclick = async () => {
       const reason = $('reason') ? $('reason').value.trim() : '';
-      if ((failed || mismatch) && !reason) { $('reason').focus(); toast('Napiš důvod.'); return; }
+      if ((failed || mismatch) && !reason) { $('reason').focus(); toast(T('writeReason')); return; }
       $('ok').disabled = true;
       const v = failed ? { id, state:'failed', delivered:0, picked:0, expected:onCar, reason } : { id, state:'done', delivered:deliv, picked, expected:onCar, reason };
-      if (await save('stop', v)) { sel = null; closeSheet(); toast(failed ? 'Nedoručení nahlášeno vedoucímu.' : 'Hotovo. Pokračuj na další zastávku.'); window.scrollTo({ top:0 }); }
+      if (await save('stop', v)) { sel = null; closeSheet(); toast(failed ? T('failSent') : T('stopOk')); window.scrollTo({ top:0 }); }
       else if ($('ok')) $('ok').disabled = false;
     };
   };
@@ -381,15 +538,15 @@ function doneSheet(id){
 }
 
 function reportSheet(){
-  openSheet(`<h2 class="big" style="font-size:22px">Nahlásit problém</h2>
-    <span class="note">Zpráva se hned objeví vedoucímu v přehledu.</span>
-    <label class="f req">Co se stalo?<textarea id="ptext" required placeholder="např. kolona na D3, zpoždění asi 20 min"></textarea></label>
-    <button class="btn blue" id="psend">Odeslat vedoucímu</button>
-    <button class="btn line" id="pback">Zrušit</button>`);
+  openSheet(`<h2 class="big" style="font-size:22px">${T('repT')}</h2>
+    <span class="note">${T('repNote')}</span>
+    <label class="f req">${T('repQ')}<textarea id="ptext" required placeholder="${esc(T('repPh'))}"></textarea></label>
+    <button class="btn blue" id="psend">${T('repSend')}</button>
+    <button class="btn line" id="pback">${T('cancel')}</button>`);
   setTimeout(() => $('ptext').focus(), 50);
   $('pback').onclick = closeSheet;
   $('psend').onclick = async () => { const text = $('ptext').value.trim(); if (!text) { $('ptext').focus(); return; }
-    $('psend').disabled = true; if (await save('problem', { text })) { closeSheet(); toast('Odesláno vedoucímu.'); } else $('psend').disabled = false; };
+    $('psend').disabled = true; if (await save('problem', { text })) { closeSheet(); toast(T('sent')); } else $('psend').disabled = false; };
 }
 
 load();

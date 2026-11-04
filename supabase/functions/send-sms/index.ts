@@ -21,20 +21,32 @@ function phoneDigits(p) {
   return /^\d{9,15}$/.test(d) ? d : null;
 }
 // SMS bez diakritiky = 160 znaků v jedné zprávě (s diakritikou jen 70)
-function plain(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[–—]/g, '-'); }
+function plain(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D').replace(/[–—]/g, '-'); }
 function hm(m) { if (m == null || isNaN(m)) return ''; m = Math.round(m); return `${Math.floor(m / 60) % 24}:${String(m % 60).padStart(2, '0')}`; }
-function dayShort(iso) {
+// texty SMS podle jazyka řidiče (výchozí angličtina); ukrajinština v azbuce = SMS v Unicode
+const SMS_LANG = {
+  cs: { run: 'Linka', dep: 'vyjezd', wd: ['Ne', 'Po', 'Ut', 'St', 'Ct', 'Pa', 'So'] },
+  en: { run: 'Run', dep: 'departure', wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] },
+  vi: { run: 'Tuyen', dep: 'xuat phat', wd: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'] },
+  uk: { run: 'Лінія', dep: 'виїзд', wd: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'], unicode: true },
+};
+function smsLang(run) { const l = (((run.plan || {}).driver) || {}).lang; return SMS_LANG[l] ? l : 'en'; }
+function smsUnicode(run) { return !!SMS_LANG[smsLang(run)].unicode; }
+function dayShort(iso, wd) {
   const [y, m, d] = String(iso).split('-').map(Number);
-  const wd = ['Ne', 'Po', 'Ut', 'St', 'Ct', 'Pa', 'So'][new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
-  return `${wd} ${d}.${m}.`;
+  return `${wd[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d}.${m}.`;
 }
 function smsText(run, appUrl) {
-  const p = run.plan || {};
+  const p = run.plan || {}, L = SMS_LANG[smsLang(run)], uni = !!L.unicode;
   const link = appUrl.replace(/\/?$/, '/') + 'ridic.html?r=' + run.token;
-  const head = (veh) => plain(`D&D laundry: Linka ${run.linka}, ${veh}, ${dayShort(run.day)} vyjezd ${hm(p.start)} `);
-  let veh = plain((p.vehicle || {}).name || '');
-  while (veh.length > 3 && head(veh).length + link.length > 160) veh = veh.slice(0, -1);  // vejde se do 1 SMS
-  return head(veh.trim()) + link;
+  const plate = String((p.vehicle || {}).plate || '').trim();
+  const clean = s => uni ? String(s || '').replace(/[–—]/g, '-') : plain(s);
+  const head = (veh) => clean(`${L.run} ${run.linka}, ${[veh, plate].filter(Boolean).join(' ')}, ${dayShort(run.day, L.wd)} ${L.dep} ${hm(p.start)} `);
+  const limit = uni ? 134 : 160;   // 1 SMS bez diakritiky / 2 části v Unicode
+  const name = clean((p.vehicle || {}).name || '').trim();
+  // když se nevejde celý název auta, zkusí se jen první slovo, jinak jen SPZ
+  const veh = [name, name.split(/\s+/)[0], ''].find(x => head(x).length + link.length <= limit) ?? '';
+  return head(veh) + link;
 }
 // --- konec pomocných funkcí ---
 
@@ -80,7 +92,7 @@ Deno.serve(async (req) => {
       if (!number) res = { ok: false, error: 'Řidič nemá platné telefonní číslo.' };
       else {
         const text = smsText(run, appUrl);
-        const payload = { application_id: appId, application_token: appToken, number, text, unicode: false, country: 'cz' };
+        const payload = { application_id: appId, application_token: appToken, number, text, unicode: smsUnicode(run), country: 'cz' };
         if (sender) { payload.sender_id = 'gText'; payload.sender_id_value = sender; }
         try {
           const r = await fetch('https://portal.bulkgate.com/api/1.0/simple/transactional', {

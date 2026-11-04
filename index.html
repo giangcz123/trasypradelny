@@ -689,7 +689,8 @@ state.settings.service = 45; // vykládka u každého zákazníka cca 45 min
 state.drivers = state.drivers || [];
 const DEPOT = { address:'D&D laundry, Vidov 40, 370 07 Vidov', query:'Vidov 40, 370 07 Vidov' };
 if (state.depot.address !== DEPOT.address) state.depot = { address:DEPOT.address, query:DEPOT.query, lat:null, lng:null };
-state.drivers.forEach(d => { d.licenses = d.licenses || []; });
+state.drivers.forEach(d => { d.licenses = d.licenses || []; if (!d.lang) d.lang = 'en'; });
+const DRIVER_LANGS = [['en','Angličtina'],['cs','Čeština'],['vi','Vietnamština'],['uk','Ukrajinština']];
 state.vehicles.forEach((v,i) => { if (!v.id) v.id = 'v' + Date.now() + '_' + i; });
 if (!Array.isArray(state.customers)) state.customers = (Array.isArray(state.stops) ? state.stops : []).filter(x => x.address).map(x => ({...x, car:''}));
 // Zastávky linky = zákazníci zaškrtnutí u některého auta
@@ -1000,6 +1001,7 @@ function renderDrivers(){
       <div class="grid2">
         <div class="wide"><label>Jméno a příjmení</label><input data-i="${i}" data-k="name" value="${esc(d.name)}"></div>
         <div class="wide"><label>Telefon pro WhatsApp</label><input data-i="${i}" data-k="phone" type="tel" value="${esc(d.phone)}" placeholder="+420 777 123 456"></div>
+        <div class="wide"><label>Jazyk zpráv a rozpisu jízd</label><select data-i="${i}" data-k="lang">${DRIVER_LANGS.map(([k,n]) => `<option value="${k}" ${(d.lang || 'en') === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="wide"><label>Řidičské oprávnění</label><div class="lic">
           ${LICENSES.map(l => `<label><input type="checkbox" data-i="${i}" data-lic="${l}" ${d.licenses.includes(l)?'checked':''}>${l}</label>`).join('')}
         </div></div>
@@ -1102,7 +1104,14 @@ function pauseRow(r){
 function driverUrl(token){ return new URL('ridic.html?r=' + token, location.href).href; }
 function driverMessage(k){
   const R = state.result, r = R.routes[k], v = state.vehicles[k];
-  if (r.token) return `D&D laundry: Linka ${r.linka} – ${v.name} – ${dayLabel(R.date)}, výjezd ${fmt(r.start)}. Tvoje trasa, klece a potvrzování hotelů: ${driverUrl(r.token)}`;
+  if (r.token) {
+    const drv = state.drivers.find(d => d.id === r.driver), lang = (drv && drv.lang) || 'en';
+    const veh = [v.name, v.plate].filter(Boolean).join(' ');
+    const MM = { cs: ['Linka','výjezd','Tvoje trasa, klece a potvrzování hotelů','cs-CZ'], en: ['Run','departure','Your route, cages and hotel confirmations','en-GB'],
+                vi: ['Tuyến','xuất phát','Lộ trình, số lồng và xác nhận khách sạn','vi-VN'], uk: ['Лінія','виїзд','Ваш маршрут, клітки та підтвердження готелів','uk-UA'] }, M = MM[lang] || MM.en;
+    const [y,m,dd] = String(R.date).split('-').map(Number), day = new Date(y, m-1, dd).toLocaleDateString(M[3], { weekday:'short', day:'numeric', month:'numeric' });
+    return `${M[0]} ${r.linka} – ${veh} – ${day}, ${M[1]} ${fmt(r.start)}. ${M[2]}: ${driverUrl(r.token)}`;
+  }
   const byId = Object.fromEntries(state.customers.map(s => [s.id, s]));
   const d = [state.depot.lat, state.depot.lng];
   const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
@@ -1564,7 +1573,7 @@ const sbc = () => window.__sb;
 const isExp = () => window.__ROLE === 'expedice';
 function applyRole(){
   const tabs = document.querySelectorAll('nav.tabs button');
-  if (isExp()) { tabs.forEach(b => b.hidden = !['exp','stav'].includes(b.dataset.tab)); showTab('exp'); }
+  if (isExp()) { tabs.forEach(b => b.hidden = b.dataset.tab !== 'exp'); showTab('exp'); }
   document.documentElement.style.setProperty('--ntabs', [...tabs].filter(b => !b.hidden).length);
 }
 function runPlan(r, k, day){
@@ -1572,7 +1581,7 @@ function runPlan(r, k, day){
   const byId = Object.fromEntries(state.customers.map(c => [c.id, c]));
   return { day, linka: r.linka, slot: r.slot || null, loader: r.linka > 1 ? 'ridic' : 'expedice',
     vehicle: { id: v.id, name: v.name, plate: v.plate || '', capacity: +v.capacity || 0, license: v.license || '', color: COLORS[k % COLORS.length] },
-    driver: drv ? { id: drv.id, name: drv.name, phone: drv.phone || '' } : null,
+    driver: drv ? { id: drv.id, name: drv.name, phone: drv.phone || '', lang: drv.lang || 'en' } : null,
     managerPhone: state.settings.managerPhone || '',
     start: Math.round(r.start), back: Math.round(r.back), service: state.result.service ?? 45, breakAt: r.breakAt != null ? Math.round(r.breakAt) : null, breakIdx: r.breakIdx ?? null, km: r.km,
     stops: r.ids.map((id, i) => { const c = byId[id] || {}; return { id, name: c.name || '', address: c.address || '', lat: c.lat ?? null, lng: c.lng ?? null,
