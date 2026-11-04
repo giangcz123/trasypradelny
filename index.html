@@ -1148,11 +1148,12 @@ function planDay(){
 }
 const goesOn = (c, day) => !!day && (c.days || []).includes(day);
 const byName = (a, b) => (a.name || a.address || '').localeCompare(b.name || b.address || '', 'cs', { sensitivity:'base', numeric:true });
-// pořadí aut v plánování: podle názvu, u stejného názvu čísla sestupně (Iveco 4, 3, 2, 1)
+// pořadí aut v plánování: Volvo první, pak podle názvu, u stejného názvu čísla sestupně (Iveco 4, 3, 2, 1)
 function vehOrder(){
   const key = v => { const m = String(v.name || '').trim().match(/^(.*?)(\d+)\s*$/); return m ? [m[1].trim(), +m[2]] : [String(v.name || '').trim(), -1]; };
   return state.vehicles.map((v,i) => i).sort((a,b) => { const [na, xa] = key(state.vehicles[a]), [nb, xb] = key(state.vehicles[b]);
-    return na.localeCompare(nb, 'cs', { sensitivity:'base' }) || (xb - xa); });
+    const va = /^volvo/i.test(na) ? 0 : 1, vb = /^volvo/i.test(nb) ? 0 : 1;   // Volvo vždy první
+    return (va - vb) || na.localeCompare(nb, 'cs', { sensitivity:'base' }) || (xb - xa); });
 }
 function renderCustomers(){
   const q = ($('custFilter').value || '').toLowerCase().trim();
