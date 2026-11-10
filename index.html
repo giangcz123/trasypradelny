@@ -362,7 +362,7 @@ body.locked{padding-bottom:0}
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 3.11.</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 10.11.</p>
     <p id="lockIntro" class="lock-text">Přihlaste se jménem a heslem.</p>
     <div id="loginFields">
       <label for="email">Přihlašovací jméno</label>
@@ -387,7 +387,7 @@ body.locked{padding-bottom:0}
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 3.11.</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 10.11.</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="stav" aria-selected="false">Stav</button>
@@ -410,7 +410,7 @@ body.locked{padding-bottom:0}
 
 <section id="tab-drivers" class="registry" role="tabpanel" hidden>
   <h2>Řidiči</h2>
-  <p class="lead">Na uvedený telefon se posílají linky přes WhatsApp. Telefon zadejte jako +420 777 123 456.</p>
+  <p class="lead">Na uvedený telefon přijde řidiči SMS s odkazem na jeho linku (záložně jde poslat i přes WhatsApp). Zprávy i stránka s linkou jsou v jazyce, který řidiči nastavíte.</p>
   <div class="card mgr"><label for="mgrPhone">Telefon vedoucího (řidiči na něj mohou z linky zavolat)</label>
     <input id="mgrPhone" type="tel" placeholder="+420 …"></div>
   <div id="driverCards" class="cards"></div>
@@ -1026,7 +1026,7 @@ function renderDrivers(){
     <article class="card">
       <div class="grid2">
         <div class="wide"><label>Jméno a příjmení</label><input data-i="${i}" data-k="name" value="${esc(d.name)}"></div>
-        <div class="wide"><label>Telefon pro WhatsApp</label><input data-i="${i}" data-k="phone" type="tel" value="${esc(d.phone)}" placeholder="+420 777 123 456"></div>
+        <div class="wide"><label>Telefon (SMS, WhatsApp)</label><input data-i="${i}" data-k="phone" type="tel" value="${esc(d.phone)}" placeholder="+420 777 123 456"></div>
         <div class="wide"><label>Jazyk zpráv a rozpisu jízd</label><select data-i="${i}" data-k="lang">${DRIVER_LANGS.map(([k,n]) => `<option value="${k}" ${(d.lang || 'en') === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div class="wide"><label>Řidičské oprávnění</label><div class="lic">
           ${LICENSES.map(l => `<label><input type="checkbox" data-i="${i}" data-lic="${l}" ${d.licenses.includes(l)?'checked':''}>${l}</label>`).join('')}
