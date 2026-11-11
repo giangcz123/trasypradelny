@@ -1589,7 +1589,7 @@ function renderResults(){
       wa = r.runId
         ? `<button class="wa" data-sms="${k}">${r.sms && r.sms.ok ? 'Poslat SMS znovu' : 'Poslat SMS'} – ${esc(drv.name)}</button><a class="wa-alt" data-run="${esc(r.runId)}" ${waLink}>nebo přes WhatsApp</a>`
         : `<a class="wa" data-run="" ${waLink}>Poslat na WhatsApp – ${esc(drv.name)}</a>`;
-      if (r.sms) wa += r.sms.ok ? `<span class="sms-ok">SMS odeslána v ${esc(timeOfIso(r.sms.at))}</span>` : `<span class="note warn">SMS se nepodařilo odeslat: ${esc(r.sms.error || '')}</span>`;
+      if (r.sms) wa += r.sms.ok ? `<span class="sms-ok">SMS odeslána v ${esc(timeOfIso(r.sms.at))}${r.sms.number ? ' na +' + esc(String(r.sms.number).replace(/^(\d{3})(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3 $4')) : ''}</span>` : `<span class="note warn">SMS se nepodařilo odeslat: ${esc(r.sms.error || '')}</span>`;
     }
     if (r.token && !state.stale) wa += `<a href="${esc(driverUrl(r.token))}" target="_blank" rel="noopener">Pohled řidiče</a>`;
     html += `<article class="ticket" style="--c:${c}">
