@@ -1162,7 +1162,7 @@ function driverMessage(k){
 function renderStops(){ renderVehicles(false); renderCustomers(); }
 
 function custGeo(c){
-  return c.lat != null ? '<span class="note">Na mapě nalezeno</span>' : (c.geoFailed ? '<span class="note warn">Adresu se nepodařilo najít. Doplňte město nebo PSČ.</span>' : '<span class="note">Poloha se vyhledá při plánování</span>');
+  return c.lat != null ? (c.geoApprox ? '<span class="note warn">Přesná adresa nenalezena, čas je spočítaný jen podle ulice nebo města. Zkontrolujte adresu.</span>' : '<span class="note">Na mapě nalezeno</span>') : (c.geoFailed ? '<span class="note warn">Adresu se nepodařilo najít. Doplňte město nebo PSČ.</span>' : '<span class="note">Poloha se vyhledá při plánování</span>');
 }
 const DAYS = [['po','Po'],['ut','Út'],['st','St'],['ct','Čt'],['pa','Pá'],['so','So'],['ne','Ne']];
 const DAY_BY_JS = ['ne','po','ut','st','ct','pa','so'];
@@ -1226,7 +1226,7 @@ $('custCards').addEventListener('input', e => {
   }
   const k = e.target.dataset.k; if (!k) return;
   c[k] = k === 'demand' ? +e.target.value : e.target.value;
-  if (k === 'address'){ c.lat = c.lng = null; c.geoFailed = false; }
+  if (k === 'address'){ c.lat = c.lng = null; c.geoFailed = false; c.geoApprox = false; }
   if (c.car && k !== 'note') markStale(); else save();
   if (k === 'name' || k === 'demand') renderVehicles(false);
 });
@@ -1332,15 +1332,38 @@ function drawMarkers(fit){
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 async function geocode(q){
   const key = q.trim().toLowerCase();
-  if (geocache[key]) return geocache[key];
+  if (geocache[key] && !geocache[key].none) return geocache[key];   // nenalezené se zkouší znovu
   const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=cz&accept-language=cs&q=' + encodeURIComponent(q);
   const res = await fetch(url, {headers:{'Accept':'application/json'}});
   if (!res.ok) throw new Error('Vyhledávání adres neodpovídá (' + res.status + ').');
   const data = await res.json();
   await sleep(1100); // limit služby: 1 dotaz za sekundu
   const hit = data[0] ? { lat:+data[0].lat, lng:+data[0].lon, label:data[0].display_name.split(',').slice(0,3).join(',') } : { none:true };
-  geocache[key] = hit; saveCache();
+  if (!hit.none) { geocache[key] = hit; saveCache(); } else delete geocache[key];
   return hit;
+}
+// varianty dotazu, když přesná adresa nejde najít (chybné PSČ, číslo domu, které mapa nezná…)
+function geoVariants(addr, name){
+  const a = String(addr || '').trim(); if (!a) return [];
+  const parts = a.split(',').map(x => x.trim()).filter(Boolean);
+  const psc = a.match(/\b(\d{3})\s?(\d{2})\b\s*([^,\d][^,]*)?/);
+  const city = (psc && psc[3] ? psc[3] : (parts.length > 1 ? parts[parts.length - 1].replace(/\d{3}\s?\d{2}/, '') : '')).trim();
+  const street = parts.length > 1 ? parts[0] : '';
+  const streetNoNum = street.replace(/\s*\d+[a-zA-Z]?(\/\d+[a-zA-Z]?)?\s*$/, '').trim();
+  const out = [[a, false]];
+  if (street && city) out.push([`${street}, ${city}`, false]);            // bez PSČ
+  if (name && city) out.push([`${name}, ${city}`, false]);                // podle názvu hotelu
+  if (streetNoNum && streetNoNum !== street && city) out.push([`${streetNoNum}, ${city}`, true]);   // jen ulice
+  if (psc) out.push([`${psc[1]} ${psc[2]}${city ? ' ' + city : ''}`, true]);
+  if (city) out.push([city, true]);
+  const seen = new Set(); return out.filter(([q]) => !seen.has(q.toLowerCase()) && seen.add(q.toLowerCase()));
+}
+async function geocodeSmart(item){
+  for (const [q, approx] of geoVariants(item.query || item.address, item.name)) {
+    const r = await geocode(q);
+    if (!r.none) return { ...r, approx };
+  }
+  return { none:true };
 }
 async function geocodeAll(){
   const todo = [];
@@ -1349,9 +1372,9 @@ async function geocodeAll(){
   let done = 0, failed = 0;
   for (const item of todo){
     setStatus(`Hledám adresy… ${++done} z ${todo.length}`);
-    const r = await geocode(item.query || item.address);
+    const r = item === state.depot ? await geocode(item.query || item.address) : await geocodeSmart(item);
     if (r.none){ item.geoFailed = true; failed++; }
-    else { item.lat = r.lat; item.lng = r.lng; item.label = r.label; item.geoFailed = false; }
+    else { item.lat = r.lat; item.lng = r.lng; item.label = r.label; item.geoFailed = false; item.geoApprox = !!r.approx; }
   }
   save(); renderStops(); renderDepotGeo(); drawMarkers(true);
   return failed;
@@ -1484,7 +1507,7 @@ $('plan').onclick = async () => {
     const warns = over.map(([v,sum]) => `${v.name} má zaškrtnuto ${klece(sum)} a uveze ${klece(v.capacity)}`)
       .concat(late.map(([v,b]) => `${v.name} se vrátí až v ${fmt(b)}`));
     if (warns.length) return setStatus(`Hotovo, ale pozor: ${warns.join('; ')}.` + syncNote, true);
-    setStatus((nu ? `Hotovo, ale ${nu} zastávek se do tras nevešlo — viz níže.` : (M.road ? 'Hotovo.' : 'Hotovo. Dojezdy jsou jen odhadnuté vzdušnou čarou, silniční data se nepodařilo načíst.')) + syncNote, !!nu || !!sync.error);
+    setStatus((nu ? `Hotovo, ale ${nu === 1 ? '1 hotel není' : nu + ' hotelů není'} v trase – nepodařilo se najít ${nu === 1 ? 'jeho adresu' : 'jejich adresy'}. Viz níže.` : (M.road ? 'Hotovo.' : 'Hotovo. Dojezdy jsou jen odhadnuté vzdušnou čarou, silniční data se nepodařilo načíst.')) + syncNote, !!nu || !!sync.error);
   } catch(e){
     setStatus(e.message + ' Zkontrolujte připojení k internetu.', true);
   }
@@ -1590,8 +1613,8 @@ function renderResults(){
   });
   html += '</div>';
   if (R.unassigned.length){
-    html += `<div class="unassigned"><strong>Nevešlo se do tras:</strong> ${R.unassigned.map(id => byId[id] ? esc(byId[id].name || byId[id].address) : '').filter(Boolean).join(', ')}.
-      <div class="hint" style="margin-top:.3rem">Obvykle pomůže rozšířit časové okno, posunout návrat, přidat auto nebo zvýšit kapacitu. Zákazníka můžete zaškrtnout u jiného auta, nebo ho nechat na další linku. Zastávky bez nalezené adresy se také počítají sem.</div></div>`;
+    html += `<div class="unassigned"><strong>Není v trase – adresu se nepodařilo najít na mapě:</strong><ul style="margin:.3rem 0 0 1.1rem;padding:0">${R.unassigned.map(id => byId[id] ? `<li><b>${esc(byId[id].name || '')}</b> – ${byId[id].address ? esc(byId[id].address) : '<i>adresa chybí</i>'}</li>` : '').filter(Boolean).join('')}</ul>
+      <div class="hint" style="margin-top:.3rem">V záložce Zákazníci opravte adresu ve tvaru <i>Ulice číslo, PSČ Město</i> (např. Kostelní 1223, 370 04 České Budějovice) a trasu naplánujte znovu.</div></div>`;
   }
   box.innerHTML = html;
   $('nextLinka')?.addEventListener('click', prepareNext);
