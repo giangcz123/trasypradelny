@@ -50,6 +50,8 @@ body.locked > :not(#lock):not(script){display:none !important}
   padding:.6rem .9rem; border-radius:8px; display:flex; gap:.75rem; align-items:center; max-width:calc(100% - 32px); box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .sync-bar button{background:var(--surface); color:var(--ink); border:0}
 #loginFields label{display:block}
+.ver-bar{position:fixed; left:12px; right:12px; top:12px; z-index:960; background:var(--ink); color:var(--bg); border-radius:10px; padding:.7rem .9rem;
+  display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; justify-content:space-between; box-shadow:0 6px 24px rgba(0,0,0,.25)}
 .ask-wrap{position:fixed; inset:0; z-index:950; background:rgba(10,12,20,.45); display:grid; place-items:center; padding:16px}
 .ask-card{background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:12px; padding:1.1rem 1.2rem; width:100%; max-width:420px}
 .ask-card p{margin:0 0 .5rem}
@@ -362,7 +364,7 @@ body.locked{padding-bottom:0}
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 11.11.</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 13.11.</p>
     <p id="lockIntro" class="lock-text">Přihlaste se jménem a heslem.</p>
     <div id="loginFields">
       <label for="email">Přihlašovací jméno</label>
@@ -387,7 +389,7 @@ body.locked{padding-bottom:0}
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 11.11.</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 13.11.</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="stav" aria-selected="false">Stav</button>
@@ -1849,6 +1851,25 @@ function renderExp(){
   };
 }
 subscribeRuns();
+
+// ---------- hlídání nové verze (telefony a aplikace na ploše drží starou stránku) ----------
+const APP_VER = '13.11.';
+async function checkVersion(){
+  try {
+    const r = await fetch(location.pathname + '?v=' + Date.now(), { cache:'no-store' });
+    if (!r.ok) return;
+    const m = (await r.text()).match(/const APP_VER = '([^']+)'/);
+    if (m && m[1] !== APP_VER && !$('verBar')) {
+      const b = document.createElement('div'); b.id = 'verBar'; b.className = 'ver-bar';
+      b.innerHTML = `Je k dispozici nová verze aplikace (${esc(m[1])}). <button class="primary" id="verReload">Načíst novou verzi</button>`;
+      document.body.appendChild(b);
+      $('verReload').onclick = () => { location.replace(location.pathname + '?v=' + Date.now()); };
+    }
+  } catch(_){}
+}
+checkVersion();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+setInterval(checkVersion, 30 * 60 * 1000);
 
 // ---------- správa uživatelů (serverová funkce manage-users) ----------
 async function callFn(name, body){
