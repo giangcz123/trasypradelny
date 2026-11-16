@@ -522,7 +522,7 @@ body.locked{padding-bottom:0}
         <div><label for="tEnd">Návrat nejpozději</label><input id="tEnd" value="17:00"></div>
         <div><label for="service">Minut na zastávku</label><input id="service" type="number" min="0" value="45"></div>
         <div><label for="reload">Vyložení a naložení v prádelně (min)</label><input id="reload" type="number" min="0" value="20"></div>
-        <p class="note wide" style="margin:0">Náklad se počítá v klecích. Den jízdy se předvyplní: od 15:00 zítřek, jinak dnešek.</p>
+        <p class="note wide" style="margin:0">Náklad se počítá v klecích. Den jízdy se předvyplní: od 14:00 zítřek, jinak dnešek.</p>
       </div>
       <p class="geo" id="depotGeo" style="font-size:.78rem;color:var(--muted);margin:.5rem 0 0"></p>
     </div>
@@ -804,7 +804,7 @@ function klece(n){
 }
 function defaultDay(){
   const d = new Date();
-  if (d.getHours() >= 15) d.setDate(d.getDate() + 1);
+  if (d.getHours() >= 14) d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 const fmtDur = (m) => { m = Math.round(m); const h = Math.floor(m/60); return h ? `${h} h ${m%60} min` : `${m} min`; };
