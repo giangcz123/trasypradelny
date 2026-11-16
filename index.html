@@ -183,11 +183,61 @@ button.danger:hover{border-color:var(--err)}
 .day-nav h2{font-size:1.25rem}
 .day-nav .dn{font-size:1.6rem; line-height:1; min-width:44px; min-height:44px; color:var(--ink)}
 .card.mgr{margin-bottom:1rem; max-width:520px}
-.chips{display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.7rem}
+.chips{display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:.7rem}
 .chips button{min-height:44px; padding:.4rem .9rem; border-radius:999px; position:relative}
 .chips button[aria-pressed="true"]{background:var(--blue); color:var(--blue-ink); border-color:var(--blue)}
 .chips .dot-alert{position:absolute; top:4px; right:6px; width:9px; height:9px; border-radius:50%; background:var(--err)}
-.op-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1rem; margin-bottom:.8rem}
+.op-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:.75rem .9rem; margin-bottom:.6rem}
+.op-card > summary{list-style:none; cursor:pointer; display:flex; flex-direction:column; gap:.35rem}
+.op-card > summary::-webkit-details-marker{display:none}
+.op-card .op-top{display:flex; align-items:center; gap:.5rem; flex-wrap:wrap}
+.op-card .op-top b{font-size:1.05rem; flex:1; min-width:0}
+.op-card .op-line{color:var(--muted); font-size:.9rem}
+.op-card .op-line b{color:var(--ink)}
+.op-card .iss-n{color:var(--err); font-weight:700; white-space:nowrap}
+.op-card[open] > summary{margin-bottom:.6rem}
+.op-stops{list-style:none; margin:.4rem 0; padding:0; font-size:.9rem; border-top:1px solid var(--line)}
+.op-stops li{display:flex; justify-content:space-between; gap:.6rem; padding:.35rem 0; border-bottom:1px dashed var(--line)}
+.op-stops li .t{color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
+.op-stops li.done{color:var(--muted)}
+.op-stops li.fail{color:var(--err)}
+.op-stops li.cur{font-weight:700}
+.op-stops li.back{color:var(--muted); border-bottom:0}
+.op-actions button{font:inherit}
+.stav-sub{text-align:center; color:var(--muted); font-size:.85rem; margin:-.4rem 0 .7rem}
+.chips{display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:.7rem}
+.chip{border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:999px; padding:.35rem .6rem; font:inherit; font-size:.8rem; min-height:36px; cursor:pointer; white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink); font-weight:700}
+.chip.bad{color:var(--err); font-weight:700}
+.chip.bad[aria-pressed="true"]{background:var(--err); color:#fff; border-color:var(--err)}
+.chip:disabled{opacity:.45; cursor:default}
+.arch-sum{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:.5rem; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:.8rem; margin-bottom:.7rem; text-align:center}
+.arch-sum b{display:block; font-size:1.3rem; font-weight:800}
+.arch-sum span{font-size:.78rem; color:var(--muted)}
+.stav-link{display:flex; align-items:center; justify-content:space-between; gap:.6rem; width:100%; min-height:48px; padding:0 .9rem; margin:.7rem 0;
+  background:var(--surface); border:1px solid var(--line); border-radius:12px; color:var(--ink); font:inherit; font-size:.95rem; cursor:pointer; text-align:left}
+.stav-link.center{justify-content:center}
+.stav-link .go{color:var(--blue); font-weight:700}
+.pend{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:.9rem; margin-top:.8rem; display:flex; flex-direction:column; gap:.55rem}
+.pend-head{display:flex; align-items:baseline; justify-content:space-between; gap:.5rem}
+.pend-head h2{margin:0; font-size:1.1rem}
+.prow{border:1px solid var(--line); border-radius:10px; background:var(--surface)}
+.prow > summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:.6rem; padding:.6rem .75rem; min-height:44px}
+.prow > summary::-webkit-details-marker{display:none}
+.prow > summary::after{content:"⌄"; margin-left:auto; color:var(--muted); font-size:1.1rem}
+.prow[open] > summary::after{content:"⌃"}
+.prow .sw{width:11px; height:11px; border-radius:50%; flex:none}
+.prow .pr-main{display:flex; flex-direction:column; min-width:0}
+.prow .pr-main small{color:var(--muted); font-size:.82rem}
+.pr-stops{list-style:none; margin:0; padding:.3rem .75rem .3rem 2.1rem; font-size:.88rem; border-top:1px solid var(--line)}
+.pr-stops li{display:flex; justify-content:space-between; gap:.6rem; padding:.2rem 0}
+.pr-stops li .t{color:var(--muted); font-variant-numeric:tabular-nums}
+.pr-stops li.back{color:var(--muted)}
+.pr-act{display:flex; flex-wrap:wrap; gap:.5rem .8rem; align-items:center; padding:.3rem .75rem .7rem; font-size:.9rem}
+.pr-act.small{padding-top:0; font-size:.85rem}
+.pr-act a{color:var(--blue)}
+.pr-act .wa{min-height:44px}
+.pend .big{min-height:48px; font-size:1rem}
 .op-card h3{font-size:1.15rem; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap}
 .op-card .sw{width:12px; height:12px; border-radius:50%; flex:none}
 .op-card .right{margin-left:auto; font-weight:500; font-size:.9rem; color:var(--muted); font-stretch:100%}
@@ -364,7 +414,7 @@ body.locked{padding-bottom:0}
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="lock-card">
     <h1 id="lockTitle">Trasy prádelny</h1>
-    <p class="lock-sub">D&amp;D laundry, Vidov · verze 13.11.</p>
+    <p class="lock-sub">D&amp;D laundry, Vidov · verze 16.11.</p>
     <p id="lockIntro" class="lock-text">Přihlaste se jménem a heslem.</p>
     <div id="loginFields">
       <label for="email">Přihlašovací jméno</label>
@@ -389,7 +439,7 @@ body.locked{padding-bottom:0}
 <div id="toast" class="sync-bar" role="status" hidden></div>
 <header class="top">
   <h1>Trasy prádelny</h1>
-  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 13.11.</span></p>
+  <p>D&amp;D laundry, Vidov <span class="note" id="appVer" title="Verze aplikace">· verze 16.11.</span></p>
   <nav class="tabs" role="tablist" aria-label="Části aplikace">
     <button role="tab" data-tab="plan" aria-selected="true">Plánování</button>
     <button role="tab" data-tab="stav" aria-selected="false">Stav</button>
@@ -1555,78 +1605,79 @@ function renderStaleNote(){
   }
 }
 
+// linka je „odeslaná“ (patří do Stavu), když má odeslanou SMS nebo už nastal čas výjezdu
+function routeMoved(r, day){
+  if (r.sms && r.sms.ok) return true;
+  const [y,m,d] = String(day).split('-').map(Number);
+  const dep = new Date(y, m-1, d, 0, Math.round(r.start ?? 0));
+  return Date.now() >= dep.getTime();
+}
+const planOpen = new Set();
 function renderResults(){
   const R = state.result, box = $('results');
   if (!R){ box.innerHTML = ''; return; }
   const byId = Object.fromEntries(state.customers.map((s,i) => [s.id, {...s, n:i+1}]));
   if (R.routes.some(r => r.ids.some(id => !byId[id]))) { state.result = null; save(); box.innerHTML = ''; return; }
-  const used = R.routes.filter(r => r.ids.length);
-  const totKm = used.reduce((a,r) => a + r.km, 0), totT = used.reduce((a,r) => a + r.travel, 0);
+  const ord = vehOrder();
+  const ks = R.routes.map((r,k) => k).filter(k => R.routes[k].ids.length)
+    .sort((a,b) => (ord.indexOf(a) + 1 || 1e9) - (ord.indexOf(b) + 1 || 1e9));
+  const pending = ks.filter(k => state.stale || !routeMoved(R.routes[k], R.date));
+  const moved = ks.length - pending.length;
   const d = [state.depot.lat, state.depot.lng];
   let html = state.stale ? '<p class="stale">Údaje se od výpočtu změnily. Klikněte na „Naplánovat trasy“ znovu.</p>' : '';
-  html += `<div class="summary"><div><strong>${totKm.toFixed(0)} km</strong> <span>celkem</span></div>
-    <div><strong>${fmtDur(totT)}</strong> <span>čisté jízdy</span></div>
-    <div><strong>${used.length} z ${R.routes.length}</strong> <span>aut vyjíždí</span></div></div>
-    <div class="row-actions res">${!state.stale && R.routes.some(r => r.ids.length && r.runId) ? '<button id="smsAll" class="primary">Poslat SMS všem řidičům</button>' : ''}<button onclick="window.print()">Vytisknout listy pro řidiče</button>
-      <button id="nextLinka" ${state.stale ? 'disabled' : ''}>Připravit další linky</button>
+  if (pending.length) {
+    const canSend = !state.stale && pending.filter(k => R.routes[k].runId);
+    html += `<section class="pend"><div class="pend-head"><h2>Čeká na odeslání</h2><span class="note">${esc(dayLabel(R.date))}</span></div>`;
+    pending.forEach(k => {
+      const r = R.routes[k], v = state.vehicles[k] || { name:`Auto ${k+1}`, capacity:'?' }, c = COLORS[k % COLORS.length];
+      const drv = state.drivers.find(x => x.id === (r.driver ?? v.driver));
+      const num = drv && waNumber(drv.phone);
+      let act;
+      if (state.stale) act = '<span class="note">Před odesláním trasy přepočítejte.</span>';
+      else if (!drv) act = '<span class="note">Přiřaďte autu řidiče.</span>';
+      else if (!num) act = `<span class="note">Doplňte řidiči ${esc(drv.name)} platné telefonní číslo.</span>`;
+      else if (!hasLicense(drv, v.license)) act = `<span class="note warn">${esc(drv.name)} nemá oprávnění ${esc(v.license)} pro toto auto.</span>`;
+      else {
+        const waLink = `href="https://wa.me/${num}?text=${encodeURIComponent(driverMessage(k))}" target="_blank" rel="noopener"`;
+        act = r.runId ? `<button class="primary wa" data-sms="${k}">Poslat SMS – ${esc(drv.name.split(' ')[0])}</button><a class="wa-alt" data-run="${esc(r.runId)}" ${waLink}>nebo přes WhatsApp</a>`
+          : `<a class="wa" data-run="" ${waLink}>Poslat na WhatsApp – ${esc(drv.name)}</a>`;
+        if (r.sms && !r.sms.ok) act += `<span class="note warn">SMS se nepodařilo odeslat: ${esc(r.sms.error || '')}</span>`;
+      }
+      if (r.token && !state.stale) act += `<a href="${esc(driverUrl(r.token))}" target="_blank" rel="noopener">Pohled řidiče</a>`;
+      const links = gmapsLinks([d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]));
+      const sum = r.ids.reduce((a, id) => a + (+byId[id].demand || 0), 0);
+      html += `<details class="prow" data-k="${k}" ${planOpen.has(k) || pending.length === 1 ? 'open' : ''}>
+        <summary><span class="sw" style="background:${c}"></span><span class="pr-main"><b>${esc(v.name)} · linka ${esc(r.linka)}</b>
+          <small>${drv ? esc(drv.name.split(' ')[0]) + ' · ' : ''}${fmt(r.start ?? R.start)} – ${fmt(r.back)} · ${r.ids.length} ${r.ids.length === 1 ? 'hotel' : r.ids.length <= 4 ? 'hotely' : 'hotelů'} · ${esc(klece(sum))}</small></span></summary>
+        <ol class="pr-stops">${r.ids.map((id,i) => `<li><span>${esc(byId[id].name || byId[id].address)}</span><span class="t">${fmt(r.times[i].begin)}</span></li>`).join('')}
+          <li class="back"><span>Návrat do prádelny</span><span class="t">${fmt(r.back)}</span></li></ol>
+        <div class="pr-act">${act}</div>
+        <div class="pr-act small">${links.map((u,i) => `<a href="${u}" target="_blank" rel="noopener">Navigace${links.length>1 ? ' ('+(i+1)+')' : ''}</a>`).join('')}<button class="ghost danger" data-delroute="${k}">Smazat trasu</button></div>
+      </details>`;
+    });
+    if (canSend.length > 1) html += `<button id="smsAll" class="primary big">Poslat SMS všem řidičům (${canSend.length})</button>`;
+    html += `<p class="note" style="margin:.2rem 0 0">Po odeslání SMS nebo v čase výjezdu se linka přesune do záložky Stav.</p></section>`;
+  }
+  if (moved) html += `<button class="stav-link" id="toStav"><span>Odeslané linky na ${esc(dayLabel(R.date).toLowerCase())}: <b>${moved}</b></span><span class="go">Stav →</span></button>`;
+  html += `<div class="row-actions res"><button id="nextLinka" ${state.stale ? 'disabled' : ''}>Připravit další linky</button>
       <button id="delPlan" class="ghost danger">Smazat naplánované trasy</button></div>`;
-  html += '<div class="tickets">';
-  const ord = vehOrder(); R.routes.map((r,k) => k).sort((a,b) => (ord.indexOf(a) + 1 || 1e9) - (ord.indexOf(b) + 1 || 1e9)).forEach(k => { const r = R.routes[k];
-    const v = state.vehicles[k] || {name:`Auto ${k+1}`, capacity:'?'};
-    const c = COLORS[k%COLORS.length];
-    if (!r.ids.length){
-      return;   // nenaplánovaná auta se nezobrazují
-    }
-    const pts = [d].concat(r.ids.map(id => [byId[id].lat, byId[id].lng]), [d]);
-    const links = gmapsLinks(pts);
-    const drv = state.drivers.find(x => x.id === (r.driver ?? v.driver));
-    const num = drv && waNumber(drv.phone);
-    let wa;
-    if (state.stale) wa = '<span class="note">Před odesláním trasy přepočítejte.</span>';
-    else if (!drv) wa = '<span class="note">Přiřaďte autu řidiče, aby šla linka poslat na WhatsApp.</span>';
-    else if (!num) wa = `<span class="note">Doplňte řidiči ${esc(drv.name)} platné telefonní číslo.</span>`;
-    else if (!hasLicense(drv, v.license)) wa = `<span class="note warn">${esc(drv.name)} nemá oprávnění ${esc(v.license)} pro toto auto. Vyberte jiného řidiče.</span>`;
-    else {
-      const waLink = `href="https://wa.me/${num}?text=${encodeURIComponent(driverMessage(k))}" target="_blank" rel="noopener"`;
-      wa = r.runId
-        ? `<button class="wa" data-sms="${k}">${r.sms && r.sms.ok ? 'Poslat SMS znovu' : 'Poslat SMS'} – ${esc(drv.name)}</button><a class="wa-alt" data-run="${esc(r.runId)}" ${waLink}>nebo přes WhatsApp</a>`
-        : `<a class="wa" data-run="" ${waLink}>Poslat na WhatsApp – ${esc(drv.name)}</a>`;
-      if (r.sms) wa += r.sms.ok ? `<span class="sms-ok">SMS odeslána v ${esc(timeOfIso(r.sms.at))}${r.sms.number ? ' na +' + esc(String(r.sms.number).replace(/^(\d{3})(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3 $4')) : ''}</span>` : `<span class="note warn">SMS se nepodařilo odeslat: ${esc(r.sms.error || '')}</span>`;
-    }
-    if (r.token && !state.stale) wa += `<a href="${esc(driverUrl(r.token))}" target="_blank" rel="noopener">Pohled řidiče</a>`;
-    html += `<article class="ticket" style="--c:${c}">
-      <h3>${esc(v.name)} · linka ${esc(r.linka)}</h3>
-      ${drv ? `<div class="driver-line">${esc(drv.name)}</div>` : ''}
-      <div class="meta"><span>${r.ids.length} ${r.ids.length === 1 ? 'zastávka' : r.ids.length <= 4 ? 'zastávky' : 'zastávek'}</span><span>${r.km.toFixed(1).replace('.', ',')} km</span>
-        <span>náklad ${esc(r.load)} z ${esc(klece(v.capacity))}</span><span>zpět ${fmt(r.back)}</span></div>
-      <ol>
-        <li><span class="t">${fmt(r.start ?? R.start)}</span><span><span class="who">Výjezd z prádelny</span></span></li>
-        ${r.ids.map((id,i) => { const s = byId[id], t = r.times[i];
-          const wait = t.begin - t.arrive > 1 ? ` · čekání ${fmtDur(t.begin - t.arrive)}` : '';
-          return `<li><span class="t">${fmt(t.begin)}<small>–${fmt(t.begin + (R.service ?? 45))}</small></span><span>
-            <span class="who">${esc(s.name || 'Zastávka '+s.n)}</span><span class="kind ${s.kind==='R'?'r':'v'}">${s.kind==='R'?'rozvoz':'vyzvednutí'}</span>
-            <div class="sub">${esc(s.address)} · ${esc(klece(s.demand))}${s.window ? ' · okno '+esc(s.window) : ''}${wait}${s.note ? '<br>' + esc(s.note) : ''}</div></span></li>`; }).join('')}
-        <li><span class="t">${fmt(r.back)}</span><span><span class="who">Návrat do prádelny</span></span></li>
-      </ol>
-      <div class="links">${wa}</div>
-      <div class="links">${links.map((u,i) => `<a href="${u}" target="_blank" rel="noopener">Navigace v Google Mapách${links.length>1 ? ' (část '+(i+1)+')' : ''}</a>`).join('')}</div>
-      <div class="links"><button class="ghost danger" data-delroute="${k}">Smazat trasu tohoto auta</button></div>
-    </article>`;
-  });
-  html += '</div>';
   if (R.unassigned.length){
     html += `<div class="unassigned"><strong>Není v trase – adresu se nepodařilo najít na mapě:</strong><ul style="margin:.3rem 0 0 1.1rem;padding:0">${R.unassigned.map(id => byId[id] ? `<li><b>${esc(byId[id].name || '')}</b> – ${byId[id].address ? esc(byId[id].address) : '<i>adresa chybí</i>'}</li>` : '').filter(Boolean).join('')}</ul>
       <div class="hint" style="margin-top:.3rem">V záložce Zákazníci opravte adresu ve tvaru <i>Ulice číslo, PSČ Město</i> (např. Kostelní 1223, 370 04 České Budějovice) a trasu naplánujte znovu.</div></div>`;
   }
   box.innerHTML = html;
+  box.querySelectorAll('details.prow').forEach(dt => dt.addEventListener('toggle', () => { const k = +dt.dataset.k; dt.open ? planOpen.add(k) : planOpen.delete(k); }));
   $('nextLinka')?.addEventListener('click', prepareNext);
   $('delPlan')?.addEventListener('click', deletePlan);
-  $('smsAll')?.addEventListener('click', () => sendSms(R.routes.map((r,k) => k).filter(k => R.routes[k].ids.length && R.routes[k].runId)));
+  $('toStav')?.addEventListener('click', () => { runsDay = R.date; showTab('stav'); window.scrollTo({ top:0 }); });
+  $('smsAll')?.addEventListener('click', () => sendSms(pending.filter(k => R.routes[k].runId)));
   box.querySelectorAll('[data-sms]').forEach(b => b.addEventListener('click', () => sendSms([+b.dataset.sms])));
   box.querySelectorAll('a[data-run]').forEach(a => a.addEventListener('click', () => { if (a.dataset.run && window.__sb)
     window.__sb.from('runs').update({ sent_at: new Date().toISOString() }).eq('id', a.dataset.run).then(() => {}, () => {}); }));
   box.querySelectorAll('[data-delroute]').forEach(b => b.addEventListener('click', () => deleteRoute(+b.dataset.delroute)));
 }
+// čas výjezdu nastal → linka sama zmizí z Plánování
+setInterval(() => { if (state.result && curTab === 'plan' && document.visibilityState === 'visible') renderResults(); }, 60000);
 
 // ---------- linky v databázi: plán, Stav, Expedice ----------
 const sbc = () => window.__sb;
@@ -1674,11 +1725,16 @@ async function sendSms(ks){
   const list = ks.map(k => [k, R.routes[k]]).filter(([k, r]) => r && r.ids.length && r.runId);
   if (!list.length) { toast('Není co odeslat. Nejdřív naplánujte trasy.'); return; }
   const names = list.map(([k, r]) => { const d = state.drivers.find(x => x.id === r.driver); return `${d ? d.name : 'bez řidiče'} (${state.vehicles[k] ? state.vehicles[k].name : ''})`; });
+  await sendSmsRuns(list.map(([, r]) => r.runId), names);
+}
+// odeslání SMS k linkám v databázi (Plánování i Stav)
+async function sendSmsRuns(runIds, names){
+  if (!runIds.length) return;
   if (!(await ask(`Poslat SMS s odkazem na linku: ${names.join(', ')}?`, 'Poslat SMS'))) return;
   setStatus('Posílám SMS…');
   let data = null, msg = '';
   try {
-    const out = await sbc().functions.invoke('send-sms', { body: { run_ids: list.map(([, r]) => r.runId) } });
+    const out = await sbc().functions.invoke('send-sms', { body: { run_ids: runIds } });
     data = out.data;
     if (out.error) { msg = out.error.message || ''; try { if (out.error.context && out.error.context.json) { const b = await out.error.context.json(); if (b && (b.error || b.message || b.msg)) msg = b.error || b.message || b.msg; } } catch(_){} }
   } catch(e){ msg = e.message || String(e); }
@@ -1686,15 +1742,19 @@ async function sendSms(ks){
     msg = (data && data.error) || msg;
     const noFn = /not found|404/i.test(msg) && !/SMS brána|BULKGATE/i.test(msg);
     const noReach = /failed to send|failed to fetch|networkerror|load failed/i.test(msg);
-    setStatus('SMS se nepodařilo odeslat. ' + (noFn ? 'V Supabase není funkce s názvem send-sms.'
+    const text = 'SMS se nepodařilo odeslat. ' + (noFn ? 'V Supabase není funkce s názvem send-sms.'
       : noReach ? 'Funkce send-sms neodpověděla – v Supabase otevřete Edge Functions → send-sms → Logs a podívejte se na chybu.'
-      : '') + (msg ? ` (${msg})` : ''), true);
+      : '') + (msg ? ` (${msg})` : '');
+    setStatus(text, true); if (curTab === 'stav') toast(text);
     return;
   }
-  for (const res of data.results) { const r = R.routes.find(x => x.runId === res.id); if (r) r.sms = res; }
-  save(); renderResults();
-  const bad = data.results.filter(x => !x.ok);
-  setStatus(bad.length ? `Odesláno ${data.results.length - bad.length} z ${data.results.length}. Neodešlo: ${bad.map(b => `${b.to || 'linka'} – ${b.error}`).join('; ')}` : (data.results.length === 1 ? 'SMS odeslána.' : `SMS odeslány všem řidičům (${data.results.length}).`), !!bad.length);
+  const R = state.result;
+  if (R) { for (const res of data.results) { const r = R.routes.find(x => x.runId === res.id); if (r) r.sms = res; } save(); renderResults(); }
+  const bad = data.results.filter(x => !x.ok), okN = data.results.length - bad.length;
+  const text = bad.length ? `Odesláno ${okN} z ${data.results.length}. Neodešlo: ${bad.map(b => `${b.to || 'linka'} – ${b.error}`).join('; ')}`
+    : (okN === 1 ? 'SMS odeslána. Linka je teď v záložce Stav.' : `SMS odeslány ${okN} řidičům. Linky jsou teď v záložce Stav.`);
+  setStatus(text, !!bad.length); if (curTab === 'stav') toast(text);
+  if (curTab === 'stav') refreshRuns();
 }
 async function dropRun(id){ try { await sbc().from('runs').delete().eq('id', id); } catch(_){} }
 
@@ -1744,35 +1804,98 @@ function runInfo(run){
   return { P, st, done, next, picked, deliv, issues, delay, notLoadedLate };
 }
 
+const stavOpen = new Set(); let stavFilter = 'all';
+function runStateOf(run, I){
+  if (run.finish) return 'done';
+  if (I.issues.length || I.notLoadedLate) return 'problem';
+  return 'road';
+}
+// linku z dneška/zítřka lze vrátit do Plánování, když je to poslední naplánovaná linka auta
+function editableK(run){
+  const R = state.result; if (!R || R.date !== run.day) return -1;
+  const k = state.vehicles.findIndex(v => v.id === run.vehicle_id); if (k < 0) return -1;
+  const r = R.routes[k], v = state.vehicles[k];
+  return r && r.runId === run.id && r.linka === (v.runs || 0) + 1 ? k : -1;
+}
+function editRun(run){
+  const k = editableK(run); if (k < 0) { toast('Tuto linku už upravit nejde – auto má naplánovanou další linku.'); return; }
+  const R = state.result, r = R.routes[k], v = state.vehicles[k];
+  state.customers.forEach(c => { if (c.car === v.id) { c.car = ''; c.order = 0; } });
+  r.ids.forEach((id, i) => { const c = state.customers.find(x => x.id === id); if (c) { c.car = v.id; c.order = i + 1; } });
+  v.driver = r.driver || '';
+  if (r.slot === 'z2') { v.start = 'z2'; v.nextStart = fmt(r.start); } else v.start = fmt(r.start);
+  state.settings.date = R.date; openPicks.add(v.id);
+  save(); renderVehicles(); showTab('plan');
+  setStatus(`${v.name} · linka ${r.linka} je zpátky v Plánování. Upravte hotely a klikněte na „Naplánovat trasy“. Řidiči pak pošlete SMS znovu.`);
+  setTimeout(() => { const el = document.querySelector(`details.pick[data-v="${v.id}"]`); if (el) el.scrollIntoView({ block:'center' }); }, 50);
+}
 function renderStav(){
   const box = $('stavBody'); if (!box) return;
   document.querySelectorAll('.dn-day').forEach(h => h.textContent = dayLabel(runsDay) + (isToday() ? ' · dnes' : ''));
   if (runsErr) { box.innerHTML = `<p class="warnbar">Přehled není k dispozici. V Supabase spusťte aktualizovaný soubor supabase.sql (SQL Editor → Run).</p>`; return; }
-  if (!runs.length) { box.innerHTML = `<p class="empty">Na tento den nejsou naplánované žádné linky.</p>`; return; }
-  const list = runs.slice().sort((a,b) => ((a.plan||{}).start ?? 0) - ((b.plan||{}).start ?? 0) || a.linka - b.linka);
-  box.innerHTML = list.map(run => {
-    const I = runInfo(run), P = I.P, color = (P.vehicle && P.vehicle.color) || '#888';
+  const archive = runsDay < todayISO();
+  const back = runsDay !== todayISO() ? `<button class="stav-link center" id="stavToday"><span class="go">Zpět na dnešek</span></button>` : '';
+  if (!runs.length) { box.innerHTML = `<p class="empty">Na tento den nejsou naplánované žádné linky.</p>${back}`; $('stavToday')?.addEventListener('click', () => { runsDay = todayISO(); refreshRuns(); }); return; }
+  const list = runs.slice().sort((a,b) => ((a.plan||{}).start ?? 0) - ((b.plan||{}).start ?? 0) || a.linka - b.linka)
+    .map(run => { const I = runInfo(run); return { run, I, st: runStateOf(run, I) }; });
+  const nIssues = list.reduce((a, x) => a + x.I.issues.length, 0);
+  let html = `<p class="stav-sub">${archive ? 'Archiv · jen ke čtení' : `${list.length} ${list.length === 1 ? 'linka' : list.length <= 4 ? 'linky' : 'linek'}${nIssues ? ` · ${nIssues} ${nIssues === 1 ? 'hlášení' : 'hlášení'}` : ''}`}</p>`;
+  if (archive) {
+    let hotels = 0, deliv = 0, picked = 0; list.forEach(({ I }) => { hotels += I.done; deliv += I.deliv; picked += I.picked; });
+    html += `<div class="arch-sum"><div><b>${list.length}</b><span>linek</span></div><div><b>${hotels}</b><span>hotelů</span></div><div><b>${deliv} / ${picked}</b><span>klecí předáno / vzato</span></div></div>`;
+    if (nIssues) html += `<p class="warnbar">${nIssues} ${nIssues === 1 ? 'hlášení nebo nesrovnalost' : 'hlášení a nesrovnalostí'} – podrobnosti po rozkliknutí linky.</p>`;
+  } else {
+    const cnt = { all: list.length, road: list.filter(x => x.st === 'road').length, problem: list.filter(x => x.st === 'problem').length, done: list.filter(x => x.st === 'done').length };
+    if (!cnt[stavFilter]) stavFilter = 'all';
+    html += `<div class="chips" role="group" aria-label="Filtr linek">${[['all','Vše'],['road','Na cestě'],['problem','Problém'],['done','Hotovo']].map(([k,n]) =>
+      `<button class="chip ${k === 'problem' && cnt.problem ? 'bad' : ''}" data-f="${k}" aria-pressed="${stavFilter === k}" ${cnt[k] || k === 'all' ? '' : 'disabled'}>${n} ${cnt[k]}</button>`).join('')}</div>`;
+  }
+  html += list.filter(x => archive || stavFilter === 'all' || x.st === stavFilter).map(({ run, I }) => {
+    const P = I.P, color = (P.vehicle && P.vehicle.color) || '#888';
     const pct = I.st.length ? Math.round(I.done / I.st.length * 100) : 0;
     let badge;
-    if (run.finish) badge = '<span class="badge ok">dokončeno</span>';
+    if (run.finish) badge = `<span class="badge ok">dokončeno ${esc(timeOfIso(run.finish.at))}</span>`;
+    else if (archive) badge = '<span class="badge warn">nedokončeno</span>';
     else if (!run.load) badge = I.notLoadedLate ? '<span class="badge err">nenaloženo</span>' : '<span class="badge wait">čeká na nakládku</span>';
     else if (I.delay) badge = `<span class="badge warn">zpoždění ${I.delay} min</span>`;
     else if (I.done) badge = '<span class="badge ok">podle plánu</span>';
     else badge = '<span class="badge wait">naloženo</span>';
+    const drvFirst = ((P.driver||{}).name || 'bez řidiče').split(' ')[0];
+    const line = run.finish ? `${esc(drvFirst)} · ${I.done} z ${I.st.length} · vyloženo ${esc(klece(run.finish.unloaded))}`
+      : archive ? `${esc(drvFirst)} · ${I.done} z ${I.st.length}`
+      : run.load && I.next ? `${esc(drvFirst)} · hotovo ${I.done} z ${I.st.length} · teď jede na <b>${esc(I.next.name)}</b>`
+      : run.load ? `${esc(drvFirst)} · vrací se do prádelny · návrat ${fmt(P.back)}`
+      : `${esc(drvFirst)} · výjezd ${fmt(P.start)} · ${I.st.length} ${I.st.length === 1 ? 'hotel' : I.st.length <= 4 ? 'hotely' : 'hotelů'}`;
     const loadLine = run.load ? (run.load.by === 'expedice' ? `Naložila expedice v ${timeOfIso(run.load.at)}` : `Naložil řidič v ${timeOfIso(run.load.at)}${run.load.fallback ? ' – bez expedice' : ''}`)
       : (P.loader === 'ridic' ? `Nakládá řidič sám${run.prep ? ' · expedice připravila klece' : ''}` : `Nakládá expedice · výjezd ${fmt(P.start)}`);
-    const nowLine = run.finish ? `V prádelně od ${timeOfIso(run.finish.at)} · vyzvednuto ${I.picked}, vyloženo ${run.finish.unloaded}${run.receive ? ` · převzato ${run.receive.count}` : ''}`
-      : (run.load && I.next ? `Teď jede na: <b>${esc(I.next.name)}</b> (plán ${fmt(I.next.begin)})` : (run.load ? 'Vrací se do prádelny' : ''));
+    const pr = run.progress || {};
+    const stops = I.st.map(s => { const p = pr[s.id];
+      const cls = p ? (p.state === 'failed' ? 'fail' : 'done') : (I.next && I.next.id === s.id && run.load ? 'cur' : '');
+      const what = p ? (p.state === 'failed' ? 'nedoručeno' : `předal ${+p.delivered || 0}, vzal ${+p.picked || 0}`) : '';
+      return `<li class="${cls}"><span>${esc(s.name)}${what ? ` · ${what}` : ''}</span><span class="t">${p ? esc(timeOfIso(p.at)) : (cls === 'cur' ? 'plán ' : '') + fmt(s.begin)}</span></li>`; }).join('');
     const tel = P.driver && P.driver.phone ? waNumber(P.driver.phone) : null;
-    return `<article class="op-card">
-      <h3><span class="sw" style="background:${esc(color)}"></span>${esc((P.vehicle||{}).name || '')} · linka ${esc(run.linka)}<span class="right">${esc((P.driver||{}).name || 'bez řidiče')}</span></h3>
-      <div class="prog" aria-hidden="true"><i style="width:${pct}%; background:${esc(color)}"></i></div>
-      <div class="st-line"><span>Hotovo <b>${I.done} z ${I.st.length}</b></span>${badge}</div>
-      <div class="op-meta">${loadLine}${run.load && run.load.fallback ? ' <span class="badge warn">bez kontroly expedice</span>' : ''}</div>
-      ${nowLine ? `<div>${nowLine}</div>` : ''}
+    const sms = run.sms ? (run.sms.ok ? `SMS odeslána v ${esc(timeOfIso(run.sms.at))}` : `SMS neodešla: ${esc(run.sms.error || '')}`) : (run.sent_at ? `Odesláno v ${esc(timeOfIso(run.sent_at))}` : 'SMS zatím neodeslána');
+    const canEdit = !archive && editableK(run) >= 0;
+    const open = stavOpen.has(run.id);
+    return `<details class="op-card" data-run="${esc(run.id)}" ${open ? 'open' : ''}>
+      <summary><span class="op-top"><span class="sw" style="background:${esc(color)}"></span><b>${esc((P.vehicle||{}).name || '')} · linka ${esc(run.linka)}</b>${badge}</span>
+        ${archive ? '' : `<span class="prog" aria-hidden="true"><i style="width:${pct}%; background:${esc(color)}"></i></span>`}
+        <span class="op-line">${line}${I.issues.length && !open ? ` <span class="iss-n">${I.issues.length} ${I.issues.length === 1 ? 'hlášení' : 'hlášení'}</span>` : ''}</span></summary>
       ${I.issues.length ? `<div class="issues"><strong>Hlášení a nesrovnalosti</strong><ul>${I.issues.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
-      <div class="op-actions">${tel ? `<a href="tel:+${tel}">Zavolat řidiči</a>` : ''}${isExp() ? '' : `<a href="${esc(driverUrl(run.token))}" target="_blank" rel="noopener">Pohled řidiče</a>`}</div>
-    </article>`; }).join('');
+      <ol class="op-stops">${stops}<li class="back"><span>Návrat do prádelny</span><span class="t">${run.finish ? esc(timeOfIso(run.finish.at)) : fmt(P.back)}</span></li></ol>
+      <div class="op-meta">${loadLine}${run.load && run.load.fallback ? ' <span class="badge warn">bez kontroly expedice</span>' : ''} · ${sms}</div>
+      ${archive ? '' : `<div class="op-actions">${tel ? `<a href="tel:+${tel}">Zavolat řidiči</a>` : ''}${isExp() ? '' : `<a href="${esc(driverUrl(run.token))}" target="_blank" rel="noopener">Pohled řidiče</a>`}
+        ${isExp() || run.finish ? '' : `<button data-resms="${esc(run.id)}">${run.sms && run.sms.ok ? 'Poslat SMS znovu' : 'Poslat SMS'}</button>`}
+        ${canEdit && !isExp() ? `<button data-edit="${esc(run.id)}">Upravit linku</button>` : ''}</div>`}
+    </details>`; }).join('');
+  html += back;
+  box.innerHTML = html;
+  box.querySelectorAll('details.op-card').forEach(dt => dt.addEventListener('toggle', () => { dt.open ? stavOpen.add(dt.dataset.run) : stavOpen.delete(dt.dataset.run); }));
+  box.querySelectorAll('.chip[data-f]').forEach(b => b.addEventListener('click', () => { stavFilter = b.dataset.f; renderStav(); }));
+  box.querySelectorAll('[data-resms]').forEach(b => b.addEventListener('click', () => { const run = runs.find(r => r.id === b.dataset.resms); if (!run) return;
+    const P = run.plan || {}; sendSmsRuns([run.id], [`${(P.driver||{}).name || 'bez řidiče'} (${(P.vehicle||{}).name || ''})`]); }));
+  box.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => { const run = runs.find(r => r.id === b.dataset.edit); if (run) editRun(run); }));
+  $('stavToday')?.addEventListener('click', () => { runsDay = todayISO(); refreshRuns(); });
 }
 
 // výběr počtu klecí: klik na číslo otevře menu
@@ -1853,7 +1976,7 @@ function renderExp(){
 subscribeRuns();
 
 // ---------- hlídání nové verze (telefony a aplikace na ploše drží starou stránku) ----------
-const APP_VER = '13.11.';
+const APP_VER = '16.11.';
 async function checkVersion(){
   try {
     const r = await fetch(location.pathname + '?v=' + Date.now(), { cache:'no-store' });
